@@ -1,0 +1,115 @@
+PHASE 15 — Future Booking Architecture
+
+Do NOT build payment yet.
+
+PHASE 15 — FUTURE BOOKING SYSTEM FOUNDATION
+
+Prepare the architecture for future online booking.
+
+DO NOT implement real payment.
+
+DO NOT accept real money.
+
+Create future-ready data model.
+
+Booking fields:
+
+bookingId
+createdAt
+visitDate
+timeSlot
+customerName
+phone
+email
+adults
+children
+totalVisitors
+package
+selectedExperiences
+selectedVRThemes
+coupon
+amount
+paymentStatus
+bookingStatus
+qrCode
+notes
+
+Statuses:
+
+pending
+confirmed
+cancelled
+completed
+
+Create future pages/placeholders:
+
+booking.html
+booking-success.html
+booking-status.html
+
+Create:
+
+Plan Your Visit
+
+button that can later become:
+
+Book Now
+
+Do not display fake prices.
+
+Create Apps Script functions:
+
+createBooking()
+getBooking()
+cancelBooking()
+updateBooking()
+
+but keep payment integration disabled.
+
+Stop.
+PHASE 16 — Booking System V2 — Future
+
+When the business is ready:
+
+PHASE 16 — ONLINE BOOKING
+
+Only implement when actual pricing, packages, capacity and operating rules are supplied.
+
+Build:
+
+Date selection
+Time slots
+Visitor count
+Adult/child
+Packages
+Indoor
+Outdoor
+VR
+Add-ons
+Customer details
+Coupon
+Order summary
+Booking confirmation
+QR ticket
+Email confirmation
+
+Admin:
+
+Capacity
+Bookings
+Cancellations
+Reports
+Daily visitor count
+
+Payment gateway integration should be added only after the business provides:
+
+merchant account
+payment provider
+pricing
+tax rules
+refund policy
+cancellation policy
+
+Never invent these.
+
+Stop.
