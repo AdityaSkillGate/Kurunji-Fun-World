@@ -34,7 +34,7 @@ const KurunjiData = {
             id: "A-02", slug: "play-with-me", name: "Play With Me",
             type: "indoor", location: "Indoor", floor: "ground", category: "Interactive",
             shortDescription: "Fun interactive experience.", description: "A highly interactive experience designed for all ages.",
-            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuDFD3ebzzc-7Bp9SB6VhJcf_nbK9TVQc1Cr27zdXsU63yP8uLAC_PAoCnYoy3tzhaW7PchyeOMz9FLEnZ9F5HM4EtknUPdNS1xr_doiXreUqfjzSyEFaCaHE3cIvzH9zJ7ayVwoHlb5GP6B1h7gdegb0p7lzpBCaswMjCjSZQoPmOODA_pS1foJnPbEoCAHAknV6jcYFaGCLGMS0WyNt5TbR4-3f520AoQYDWIA0Ubnz4lZbq5dBkEfzQ"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 2
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786264010/massage-char_1_wmxnyc.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 2
         },
         {
             id: "A-03", slug: "boxer", name: "Boxer",

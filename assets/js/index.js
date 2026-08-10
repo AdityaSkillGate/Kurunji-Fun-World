@@ -52,13 +52,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     const card = document.createElement('div');
-                    card.className = "flex-none w-full md:w-[calc(33.333%-1.33rem)] snap-center bg-white p-8 rounded-3xl shadow-md border border-outline-variant/10 hover:-translate-y-2 hover:shadow-xl transition-all duration-300";
+                    card.className = "flex-none flex flex-col w-full md:w-[calc(33.333%-1.33rem)] snap-center bg-white p-8 rounded-3xl shadow-md border border-outline-variant/10 hover:-translate-y-2 hover:shadow-xl transition-all duration-300";
                     card.innerHTML = `
                         <div class="flex gap-1 text-tertiary mb-6">
                             ${starsHtml}
                         </div>
                         <p class="font-body-lg text-on-surface-variant italic mb-8">"${commentText}"</p>
-                        <div class="flex items-center gap-4 border-t border-outline-variant/20 pt-6">
+                        <div class="flex items-center gap-4 border-t border-outline-variant/20 pt-6 mt-auto">
                             <div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-primary font-bold text-xl">${initial}</div>
                             <div>
                             <h5 class="font-bold text-on-surface">${r.guest || 'Guest'}</h5>

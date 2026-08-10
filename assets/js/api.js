@@ -334,7 +334,7 @@ async function fetchCMSData() {
                     seoTitle: "Kurunji Fun World | Kodaikanal",
                     seoDesc: "The best amusement park in Kodaikanal featuring VR arenas, 4D simulators, and family rides.",
                     aboutIntro: "Kurunji Fun World brings cutting-edge entertainment to the serene hills of Kodaikanal.",
-                    hours: "Open Daily: 9:00 AM - 7:30 PM"
+                    hours: "Open Daily: 9:00 AM - 8:00 PM"
                 });
             }, 600);
         });
