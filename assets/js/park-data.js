@@ -40,13 +40,13 @@ const KurunjiData = {
             id: "A-03", slug: "boxer", name: "Boxer",
             type: "indoor", location: "Indoor", floor: "ground", category: "Arcade",
             shortDescription: "Test your punching strength.", description: "Step up and test your strength with the classic Boxer arcade machine.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 3
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786457785/Untitled_design_1_kllmsc.png","https://res.cloudinary.com/dfetzuxxx/image/upload/v1786457879/IMG_20260807_184619_zhm8tr.jpg"], videos: ["https://res.cloudinary.com/dfetzuxxx/video/upload/v1786457952/video_20260807_184902_ecvqve.mp4"], panorama: "", featured: false, status: "active", displayOrder: 3
         },
         {
             id: "A-04", slug: "down-the-clown", name: "Down the Clown",
             type: "indoor", location: "Indoor", floor: "ground", category: "Arcade",
             shortDescription: "Classic carnival throwing game.", description: "Knock down the clowns to score points and win tickets.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 4
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786458523/Untitled_design_3_mo0cvj.png"], videos: ["https://res.cloudinary.com/dfetzuxxx/video/upload/v1786459777/Attractions_fy8cok.mp4"], panorama: "", featured: false, status: "active", displayOrder: 4
         },
         {
             id: "A-05", slug: "basketball", name: "Basketball",
@@ -58,13 +58,13 @@ const KurunjiData = {
             id: "A-06", slug: "pink-love", name: "Pink Love",
             type: "indoor", location: "Indoor", floor: "ground", category: "Claw",
             shortDescription: "Try to win a cute plushie.", description: "A beautifully themed claw machine filled with premium prizes.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 6
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786458818/Untitled_design_4_ccc9zn.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 6
         },
         {
             id: "A-07", slug: "space-catcher", name: "Space Catcher",
             type: "indoor", location: "Indoor", floor: "ground", category: "Claw",
             shortDescription: "Space-themed prize catcher.", description: "Test your precision and grab out-of-this-world prizes.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 7
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786459036/Untitled_design_5_knyeth.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 7
         },
         {
             id: "A-08", slug: "snail-times", name: "Snail Times",
@@ -152,7 +152,7 @@ const KurunjiData = {
             id: "B-01", slug: "ball-pool", name: "Ball Pool",
             type: "indoor", location: "Indoor", floor: "first", category: "Kids Play",
             shortDescription: "Dive into a massive sea of colorful balls.", description: "A huge, safe, and hygienic ball pool perfect for energetic kids to jump and play in.",
-            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuB1rfXh_vmQ0Mo0zM_9Illa4v5Iy7CPKol7qtzoeVwJgONEuHDwHlnoYylx6tLGI42Y3S69xpPaUjTXMM_jDNqcrgYTTfLkaPDaKeSap0XpC8hL2kwMFXxR79fSPMh-KQqH2dI75xcsoCyE-rKaSENvFokGo0Gs_pDoV0AQvqCLdRUnjq9ErBiav-1dEAcLZjoR57Q04_n27xyf3JWekPnz-IgH-JT6NR2_CssV3QTviqhg42ujOz7NOA", "https://lh3.googleusercontent.com/aida-public/AB6AXuDzASf6PeZ5vgmk4MM6J2lqBkVteSuypVM-ON5KCbVEk19Qi5IrevtfJqcDdHC6N4tW3B0kIQXwJy8HL5eXSAY2Mo3h1VAJRlu_RFUUw1Nf34xFhw3q-UB2_lsZ4F8jLEbXmjbrvDowxT8kMv4vMtolbCfWVMPkBnHtvkFy57JAK4ZqiGckSKuQb2RxZTXZn737HaK45pSNP5wBCGu-n_NdnHcRDK--4ADnvP_jgLCIXC8Kbj5Z8BavWw"], videos: ["https://www.w3schools.com/html/mov_bbb.mp4"], panorama: "", featured: true, status: "active", displayOrder: 21
+            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuB1rfXh_vmQ0Mo0zM_9Illa4v5Iy7CPKol7qtzoeVwJgONEuHDwHlnoYylx6tLGI42Y3S69xpPaUjTXMM_jDNqcrgYTTfLkaPDaKeSap0XpC8hL2kwMFXxR79fSPMh-KQqH2dI75xcsoCyE-rKaSENvFokGo0Gs_pDoV0AQvqCLdRUnjq9ErBiav-1dEAcLZjoR57Q04_n27xyf3JWekPnz-IgH-JT6NR2_CssV3QTviqhg42ujOz7NOA", "https://lh3.googleusercontent.com/aida-public/AB6AXuDzASf6PeZ5vgmk4MM6J2lqBkVteSuypVM-ON5KCbVEk19Qi5IrevtfJqcDdHC6N4tW3B0kIQXwJy8HL5eXSAY2Mo3h1VAJRlu_RFUUw1Nf34xFhw3q-UB2_lsZ4F8jLEbXmjbrvDowxT8kMv4vMtolbCfWVMPkBnHtvkFy57JAK4ZqiGckSKuQb2RxZTXZn737HaK45pSNP5wBCGu-n_NdnHcRDK--4ADnvP_jgLCIXC8Kbj5Z8BavWw"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 21
         },
         {
             id: "B-02", slug: "trampoline", name: "Trampoline",

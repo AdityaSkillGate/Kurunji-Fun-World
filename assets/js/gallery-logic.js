@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Thumbnail (For videos, if we have a thumbnail we'd use it, otherwise use a placeholder or the video tag itself. Here we'll use a placeholder for video if URL is not image)
             let thumbUrl = item.url;
             if (item.type === 'video') {
-                thumbUrl = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop'; // Placeholder for video thumb
+                thumbUrl = 'https://res.cloudinary.com/dfetzuxxx/image/upload/v1786459362/Kurunji-fun-world_mbpqju.png'; // Placeholder for video thumb
             }
 
             const img = document.createElement('img');

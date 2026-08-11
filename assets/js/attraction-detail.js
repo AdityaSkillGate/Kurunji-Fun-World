@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Get Slug
     const params = new URLSearchParams(window.location.search);
-    const slug = params.get('slug');
+    const slug = window.CURRENT_ATTRACTION_SLUG || params.get('slug');
 
     if (!slug) {
         showError();
@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const grad = gradients[index % gradients.length];
             const icon = getCategoryIcon(item.category);
             return `
-                <a href="attraction.html?slug=${item.slug}" class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-outline-variant/20 flex flex-col group block cursor-pointer">
+                <a href="attraction-${item.slug}.html" class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-outline-variant/20 flex flex-col group block cursor-pointer">
                     <div class="relative h-32 bg-gradient-to-br ${grad} flex items-center justify-center">
                         <span class="material-symbols-outlined text-white/50 text-5xl group-hover:scale-110 transition-transform">${icon}</span>
                     </div>

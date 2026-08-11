@@ -121,31 +121,47 @@ function updateSyncStatus(isSuccess) {
 // FEEDBACKS VIEW
 // ==========================================
 let fbState = { page: 1, hasMore: false, total: 0 };
+let _allFeedbacks = null;
+let _allEnquiries = null;
 
 async function loadFeedbacks() {
     const tbody = document.getElementById('fb-table-body');
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8"><span class="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span></td></tr>';
     
     try {
-        const search = document.getElementById('fb-search').value;
+        if (!_allFeedbacks) {
+            const res = await fetchAdminFeedbacks({ status: 'All' }, 1);
+            _allFeedbacks = res.feedbacks;
+        }
+        
+        const search = document.getElementById('fb-search').value.toLowerCase();
         const status = document.getElementById('fb-status-filter').value;
         
-        const data = await fetchAdminFeedbacks({ search, status }, fbState.page);
-        fbState.hasMore = data.hasMore;
-        fbState.total = data.total;
+        let filtered = _allFeedbacks.filter(f => {
+            if (status !== 'All' && f.status.toUpperCase() !== status.toUpperCase()) return false;
+            if (search && !(f.guest.toLowerCase().includes(search) || f.comments.toLowerCase().includes(search))) return false;
+            return true;
+        });
+
+        fbState.total = filtered.length;
+        const perPage = 10;
+        fbState.hasMore = (fbState.page * perPage) < filtered.length;
+        
+        const startIdx = (fbState.page - 1) * perPage;
+        const pagedData = filtered.slice(startIdx, startIdx + perPage);
         
         tbody.innerHTML = '';
-        if (data.feedbacks.length === 0) {
+        if (pagedData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-on-surface-variant">No feedbacks found.</td></tr>';
         } else {
-            data.feedbacks.forEach(f => {
+            pagedData.forEach(f => {
                 const stars = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating);
                 tbody.innerHTML += `
                     <tr class="hover:bg-surface/50 transition-colors">
                         <td class="px-6 py-4 font-semibold">${f.id}</td>
                         <td class="px-6 py-4 text-on-surface-variant">${f.date}</td>
                         <td class="px-6 py-4">
-                            <p class="font-bold">${f.guest}</p>
+                            <p class="font-bold">${f.guest || 'Anonymous'}</p>
                             <p class="text-[10px] text-on-surface-variant">${f.phone} ${f.email || ''}</p>
                         </td>
                         <td class="px-6 py-4 text-yellow-500 text-xs">${stars}</td>
@@ -164,17 +180,27 @@ async function loadFeedbacks() {
         }
         
         // Update pagination info
-        const start = (fbState.page - 1) * 10 + (data.feedbacks.length > 0 ? 1 : 0);
-        const end = start + data.feedbacks.length - (data.feedbacks.length > 0 ? 1 : 0);
+        const start = (fbState.page - 1) * perPage + (pagedData.length > 0 ? 1 : 0);
+        const end = startIdx + pagedData.length;
         document.getElementById('fb-page-info').innerText = `Showing ${start} to ${end} of ${fbState.total} entries`;
         document.getElementById('fb-prev').disabled = fbState.page === 1;
         document.getElementById('fb-next').disabled = !fbState.hasMore;
 
-        // Populate mock top cards (in reality, another API call might fetch these)
-        document.getElementById('fb-total').innerText = "1,284";
-        document.getElementById('fb-pending').innerText = "42";
-        document.getElementById('fb-enquiries').innerText = "315";
-        document.getElementById('fb-rating').innerText = "4.8";
+        // Dynamic stats
+        let totalFbs = _allFeedbacks.length;
+        let pendingFbs = _allFeedbacks.filter(f => f.status === 'PENDING').length;
+        let sumRating = _allFeedbacks.reduce((sum, f) => sum + (parseFloat(f.rating) || 0), 0);
+        let avgRating = totalFbs > 0 ? (sumRating / totalFbs).toFixed(1) : "0.0";
+        
+        document.getElementById('fb-total').innerText = totalFbs;
+        document.getElementById('fb-pending').innerText = pendingFbs;
+        document.getElementById('fb-rating').innerText = avgRating;
+        
+        if(!_allEnquiries) {
+            const eqRes = await fetchAdminEnquiries({ status: 'All' }, 1);
+            _allEnquiries = eqRes.enquiries;
+        }
+        document.getElementById('fb-enquiries').innerText = _allEnquiries.length;
         
         updateSyncStatus(true);
 
@@ -188,10 +214,15 @@ async function handleFbStatusChange(id, newStatus) {
     if(!newStatus) return;
     try {
         await updateFeedbackStatus(id, newStatus);
+        if (_allFeedbacks) {
+            const fb = _allFeedbacks.find(f => f.id === id);
+            if (fb) fb.status = newStatus;
+        }
         loadFeedbacks(); // refresh
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-error">Failed to load data. Ensure Google Apps Script URL is correct.</td></tr>';
-        console.error("Error loading feedbacks:", e);
+        const tbody = document.getElementById('fb-table-body');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-error">Failed to save data. Ensure Google Apps Script URL is correct.</td></tr>';
+        console.error("Error updating feedback:", e);
     }
 }
 
@@ -205,18 +236,32 @@ async function loadEnquiries() {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8"><span class="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span></td></tr>';
     
     try {
-        const search = document.getElementById('eq-search').value;
+        if (!_allEnquiries) {
+            const res = await fetchAdminEnquiries({ status: 'All' }, 1);
+            _allEnquiries = res.enquiries;
+        }
+
+        const search = document.getElementById('eq-search').value.toLowerCase();
         const status = document.getElementById('eq-status-filter').value;
         
-        const data = await fetchAdminEnquiries({ search, status }, eqState.page);
-        eqState.hasMore = data.hasMore;
-        eqState.total = data.total;
+        let filtered = _allEnquiries.filter(e => {
+            if (status !== 'All' && e.status.toUpperCase() !== status.toUpperCase()) return false;
+            if (search && !(e.name.toLowerCase().includes(search) || e.message.toLowerCase().includes(search))) return false;
+            return true;
+        });
+
+        eqState.total = filtered.length;
+        const perPage = 10;
+        eqState.hasMore = (eqState.page * perPage) < filtered.length;
+        
+        const startIdx = (eqState.page - 1) * perPage;
+        const pagedData = filtered.slice(startIdx, startIdx + perPage);
         
         tbody.innerHTML = '';
-        if (data.enquiries.length === 0) {
+        if (pagedData.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-on-surface-variant">No enquiries found.</td></tr>';
         } else {
-            data.enquiries.forEach(e => {
+            pagedData.forEach(e => {
                 tbody.innerHTML += `
                     <tr class="hover:bg-surface/50 transition-colors">
                         <td class="px-6 py-4 font-semibold">${e.id}</td>
@@ -240,8 +285,8 @@ async function loadEnquiries() {
             });
         }
         
-        const start = (eqState.page - 1) * 10 + (data.enquiries.length > 0 ? 1 : 0);
-        const end = start + data.enquiries.length - (data.enquiries.length > 0 ? 1 : 0);
+        const start = (eqState.page - 1) * perPage + (pagedData.length > 0 ? 1 : 0);
+        const end = startIdx + pagedData.length;
         document.getElementById('eq-page-info').innerText = `Showing ${start} to ${end} of ${eqState.total} entries`;
         document.getElementById('eq-prev').disabled = eqState.page === 1;
         document.getElementById('eq-next').disabled = !eqState.hasMore;
@@ -258,10 +303,15 @@ async function handleEqStatusChange(id, newStatus) {
     if(!newStatus) return;
     try {
         await updateEnquiryStatus(id, newStatus);
+        if (_allEnquiries) {
+            const eq = _allEnquiries.find(e => e.id === id);
+            if (eq) eq.status = newStatus;
+        }
         loadEnquiries(); // refresh
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-error">Failed to load data. Ensure Google Apps Script URL is correct.</td></tr>';
-        console.error("Error loading enquiries:", e);
+        const tbody = document.getElementById('eq-table-body');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-error">Failed to save data. Ensure Google Apps Script URL is correct.</td></tr>';
+        console.error("Error updating enquiry:", e);
     }
 }
 
@@ -271,7 +321,6 @@ async function handleEqStatusChange(id, newStatus) {
 // ==========================================
 let demoChart = null;
 let trendChart = null;
-let _allFeedbacks = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const dateFilter = document.getElementById('analytics-date-filter');
@@ -303,7 +352,7 @@ async function loadAnalytics() {
             sumRating += parseFloat(f.rating || 0);
             
             if (f.hours) {
-                let h = parseFloat(f.hours.replace('+', ''));
+                let h = parseFloat(f.hours.toString().replace('+', ''));
                 if(!isNaN(h)) {
                     sumHours += h;
                     cHours++;

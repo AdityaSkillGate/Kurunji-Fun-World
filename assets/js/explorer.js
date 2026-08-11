@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${attraction.slug === 'vr-360' ? 
                         `<a href="vr-360.html" class="w-full mt-auto py-2.5 rounded-lg border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">Explore <span class="material-symbols-outlined text-[18px]">arrow_forward</span></a>` 
                         : 
-                        `<a href="attraction.html?slug=${attraction.slug}" class="w-full mt-auto py-2.5 rounded-lg border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">Explore <span class="material-symbols-outlined text-[18px]">arrow_forward</span></a>`
+                        `<a href="attraction-${attraction.slug}.html" class="w-full mt-auto py-2.5 rounded-lg border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">Explore <span class="material-symbols-outlined text-[18px]">arrow_forward</span></a>`
                     }
                 </div>
             </div>
