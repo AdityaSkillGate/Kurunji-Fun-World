@@ -1,6 +1,32 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial Load
-    switchTab('feedbacks');
+document.addEventListener('DOMContentLoaded', async () => {
+    // Authentication Check
+    const token = getAuthToken();
+    if (!token) {
+        // Stay on login screen
+        return;
+    }
+
+    // Validate token
+    const session = await validateAdminSession();
+    console.log("Session validation result:", session);
+    if (session.status === 'success') {
+        sessionStorage.setItem('adminRole', session.role);
+        sessionStorage.setItem('adminEmail', session.email);
+        document.getElementById('admin-name').innerText = session.role === 'SUPER_ADMIN' ? 'Super Admin' : (session.role === 'OWNER' ? 'Park Owner' : 'Manager');
+        document.getElementById('admin-role').innerText = session.email;
+        
+        // Show dashboard
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('sidebar').classList.remove('hidden');
+        document.getElementById('main-content').classList.remove('hidden');
+
+        // Initial Load
+        switchTab('feedbacks');
+    } else {
+        sessionStorage.removeItem('adminToken');
+        // Stay on login screen
+        return;
+    }
     
     // Set up event listeners for filters/search
     document.getElementById('fb-search').addEventListener('input', debounce(() => { fbState.page = 1; loadFeedbacks(); }, 500));
@@ -129,9 +155,14 @@ async function loadFeedbacks() {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8"><span class="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span></td></tr>';
     
     try {
-        if (!_allFeedbacks) {
-            const res = await fetchAdminFeedbacks({ status: 'All' }, 1);
-            _allFeedbacks = res.feedbacks;
+        if (!_allFeedbacks || !_allEnquiries) {
+            // Fetch in parallel to save time
+            const [fbRes, eqRes] = await Promise.all([
+                _allFeedbacks ? Promise.resolve({ feedbacks: _allFeedbacks }) : fetchAdminFeedbacks({ status: 'All' }, 1),
+                _allEnquiries ? Promise.resolve({ enquiries: _allEnquiries }) : fetchAdminEnquiries({ status: 'All' }, 1)
+            ]);
+            _allFeedbacks = fbRes.feedbacks;
+            _allEnquiries = eqRes.enquiries;
         }
         
         const search = document.getElementById('fb-search').value.toLowerCase();
@@ -195,14 +226,11 @@ async function loadFeedbacks() {
         document.getElementById('fb-total').innerText = totalFbs;
         document.getElementById('fb-pending').innerText = pendingFbs;
         document.getElementById('fb-rating').innerText = avgRating;
-        
-        if(!_allEnquiries) {
-            const eqRes = await fetchAdminEnquiries({ status: 'All' }, 1);
-            _allEnquiries = eqRes.enquiries;
-        }
+        document.getElementById('fb-rating').innerText = avgRating;
         document.getElementById('fb-enquiries').innerText = _allEnquiries.length;
         
         updateSyncStatus(true);
+        applyRoleRestrictions();
 
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-error">Failed to load data.</td></tr>';
@@ -292,6 +320,7 @@ async function loadEnquiries() {
         document.getElementById('eq-next').disabled = !eqState.hasMore;
 
         updateSyncStatus(true);
+        applyRoleRestrictions();
 
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-error">Failed to load data.</td></tr>';
@@ -588,6 +617,7 @@ async function loadCMS() {
             if(data.hours) document.getElementById('cms-hours').value = data.hours;
         }
         updateSyncStatus(true);
+        applyRoleRestrictions();
     } catch (e) {
         console.error("Failed to load CMS data", e);
         updateSyncStatus(false);
@@ -619,4 +649,157 @@ async function saveCMS() {
         alert("Failed to save changes");
         btn.innerHTML = originalText;
     }
+}
+
+// ==========================================
+// ROLE RESTRICTIONS
+// ==========================================
+function applyRoleRestrictions() {
+    const role = sessionStorage.getItem('adminRole');
+    if (role === 'OWNER') {
+        document.querySelectorAll('select, button.bg-primary, button.bg-\\[\\#006e25\\]').forEach(el => {
+            if(!el.id.includes('login') && !el.id.includes('forgot') && !el.id.includes('reset') && !el.closest('#sidebar')) {
+                el.disabled = true;
+                el.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+        document.querySelectorAll('input').forEach(el => {
+            if(!el.id.includes('search') && !el.id.includes('login') && !el.id.includes('forgot') && !el.id.includes('reset')) {
+                el.disabled = true;
+                el.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    }
+}
+
+// ==========================================
+// AUTHENTICATION UI LOGIC
+// ==========================================
+
+document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('login-error');
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    err.classList.add('hidden');
+    btn.innerHTML = `<span class="material-symbols-outlined text-[20px] animate-spin">progress_activity</span> Authenticating...`;
+    btn.disabled = true;
+
+    try {
+        const res = await adminLogin(email, password);
+        if (res.status === 'success') {
+            sessionStorage.setItem('adminToken', res.token);
+            sessionStorage.setItem('adminRole', res.role);
+            sessionStorage.setItem('adminEmail', res.email);
+            
+            // Skip reload and show dashboard instantly
+            document.getElementById('admin-name').innerText = res.role === 'SUPER_ADMIN' ? 'Super Admin' : (res.role === 'OWNER' ? 'Park Owner' : 'Manager');
+            document.getElementById('admin-role').innerText = res.email;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            switchTab('feedbacks');
+        } else {
+            err.innerText = res.message || "Invalid credentials.";
+            err.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error("Login fetch error:", error);
+        err.innerText = "Error: " + (error.message || "Failed to fetch");
+        err.classList.remove('hidden');
+    } finally {
+        btn.innerHTML = `<span class="material-symbols-outlined text-[20px]">login</span> Sign In`;
+        btn.disabled = false;
+    }
+});
+
+function showForgotPassword() {
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('forgot-form').classList.remove('hidden');
+    document.getElementById('reset-form').classList.add('hidden');
+    document.getElementById('login-error').classList.add('hidden');
+    document.getElementById('login-success').classList.add('hidden');
+}
+
+function hideForgotPassword() {
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('forgot-form').classList.add('hidden');
+    document.getElementById('reset-form').classList.add('hidden');
+}
+
+document.getElementById('forgot-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('forgot-btn');
+    const email = document.getElementById('forgot-email').value;
+    const err = document.getElementById('login-error');
+    const succ = document.getElementById('login-success');
+    
+    err.classList.add('hidden');
+    succ.classList.add('hidden');
+    btn.innerHTML = `Sending...`;
+    btn.disabled = true;
+
+    try {
+        const res = await requestResetOTP(email);
+        if(res.status === 'success') {
+            document.getElementById('forgot-form').classList.add('hidden');
+            document.getElementById('reset-form').classList.remove('hidden');
+            succ.innerText = res.message || "OTP sent successfully.";
+            succ.classList.remove('hidden');
+            sessionStorage.setItem('resetEmail', email);
+        } else {
+            err.innerText = res.message || "Failed to send OTP.";
+            err.classList.remove('hidden');
+        }
+    } catch (error) {
+        err.innerText = "Network error. Please try again.";
+        err.classList.remove('hidden');
+    } finally {
+        btn.innerHTML = `Send OTP`;
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('reset-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('reset-btn');
+    const email = sessionStorage.getItem('resetEmail');
+    const otp = document.getElementById('reset-otp').value;
+    const password = document.getElementById('reset-password').value;
+    const err = document.getElementById('login-error');
+    const succ = document.getElementById('login-success');
+    
+    err.classList.add('hidden');
+    succ.classList.add('hidden');
+    btn.innerHTML = `Resetting...`;
+    btn.disabled = true;
+
+    try {
+        const res = await resetPasswordWithOTP(email, otp, password);
+        if(res.status === 'success') {
+            hideForgotPassword();
+            succ.innerText = "Password reset successful. You can now log in.";
+            succ.classList.remove('hidden');
+            document.getElementById('login-password').value = '';
+        } else {
+            err.innerText = res.message || "Invalid OTP.";
+            err.classList.remove('hidden');
+        }
+    } catch (error) {
+        err.innerText = "Network error. Please try again.";
+        err.classList.remove('hidden');
+    } finally {
+        btn.innerHTML = `Reset Password`;
+        btn.disabled = false;
+    }
+});
+
+async function handleLogout(e) {
+    if(e) e.preventDefault();
+    const btn = e ? e.currentTarget : null;
+    if(btn) btn.innerHTML = `<span class="material-symbols-outlined animate-spin">progress_activity</span>`;
+    await logoutAdmin();
+    window.location.reload();
 }

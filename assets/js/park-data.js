@@ -82,19 +82,19 @@ const KurunjiData = {
             id: "A-10", slug: "passion-blasting", name: "Passion Blasting",
             type: "indoor", location: "Indoor", floor: "ground", category: "Shooter",
             shortDescription: "Intense arcade shooting action.", description: "Lock and load in this intense, high-energy arcade shooter.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 10
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786602029/Untitled_design_6_yimtpl.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 10
         },
         {
             id: "A-11", slug: "vr-360", name: "VR 360",
             type: "vr", location: "Indoor", floor: "ground", category: "VR",
             shortDescription: "Immersive 360 virtual reality experiences with 40+ themes.", description: "Step into another world with our state-of-the-art VR 360 simulator featuring over 40 distinct virtual environments.",
-            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuCwu4hp34A-Y6EaDxqgHHBVINlg4uhE65GhjSeTksz_SLh0PDV5eL_xKGHnH-RRMv1fZqSKr9IARFaHNH4_As_ktkYc4n8lPLYk47ZB7H8wi6S7_vWhdK7DRybqdlrD7ob91fuk4Yy8yjDLdsxiw_Ea5y7Aqc_ODhdbBuGMDx5rk4tWvCsZwA4hr3HmBf84OSSSIr9O_ZJAQc68r10SbjKyKUAWCV8S48UOjPrCYaTiYZGDXbk-_xY92g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 11
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605266/Untitled_design_8_tc7sdu.png","https://lh3.googleusercontent.com/aida-public/AB6AXuCwu4hp34A-Y6EaDxqgHHBVINlg4uhE65GhjSeTksz_SLh0PDV5eL_xKGHnH-RRMv1fZqSKr9IARFaHNH4_As_ktkYc4n8lPLYk47ZB7H8wi6S7_vWhdK7DRybqdlrD7ob91fuk4Yy8yjDLdsxiw_Ea5y7Aqc_ODhdbBuGMDx5rk4tWvCsZwA4hr3HmBf84OSSSIr9O_ZJAQc68r10SbjKyKUAWCV8S48UOjPrCYaTiYZGDXbk-_xY92g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 11
         },
         {
             id: "A-12", slug: "rescue", name: "Rescue",
             type: "indoor", location: "Indoor", floor: "ground", category: "Shooter",
             shortDescription: "Save the day in this action game.", description: "Become the hero in this immersive arcade rescue mission.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 12
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786602814/Untitled_design_7_buyxna.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 12
         },
         {
             id: "A-13", slug: "crazy-ball", name: "Crazy Ball",
@@ -106,43 +106,43 @@ const KurunjiData = {
             id: "A-14", slug: "wave-riders", name: "Wave Riders",
             type: "indoor", location: "Indoor", floor: "ground", category: "Simulator",
             shortDescription: "Ride the digital waves.", description: "Experience the thrill of the ocean without getting wet.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 14
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786604694/7_k3urns.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 14
         },
         {
             id: "A-15", slug: "vr-4-seater", name: "VR 4 Seater",
             type: "vr", location: "Indoor", floor: "ground", category: "VR",
             shortDescription: "Group virtual reality adventure.", description: "Share the VR thrill with friends and family in our 4-seater immersive pod.",
-            images: [], videos: [], panorama: "", featured: true, status: "active", displayOrder: 15
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605063/IMG_20260807_185519_iiictu.jpg"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 15
         },
         {
             id: "A-16", slug: "ace-shooter", name: "Ace Shooter",
             type: "indoor", location: "Indoor", floor: "ground", category: "Shooter",
             shortDescription: "Show off your marksmanship.", description: "Aim for the high score in this competitive arcade marksman game.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 16
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605770/Untitled_design_9_gwpp36.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 16
         },
         {
             id: "A-17", slug: "crusin-blast", name: "Crusin Blast",
             type: "indoor", location: "Indoor", floor: "ground", category: "Racing",
             shortDescription: "High-speed arcade racing.", description: "Burn rubber and drift through extreme tracks in Crusin Blast.",
-            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuBk9YcCKiEQxDcXoffBAkWyJM664LZhBbCZt5NqiVGZr-OKEdjo7JW-jR0zHHbEMuwqUbU0DxfLnV8N8gFRq8ktkueA22z_5BQhVehpLvTvGzYibNLhe_VJl57s3iL4SL0b0mls1lEbYgdHuPne3KJmufarAP56PKdtuzLQxk1EV4l3MgoGV2u10GCjt4EZaBEi_UORoUyTYeCy0GZHuwzBpMtZ6YtI8L9ZExC2r_w6_x_F-2oeQ-_5_g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 17
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786606077/Untitled_design_11_qjorev.png","https://lh3.googleusercontent.com/aida-public/AB6AXuBk9YcCKiEQxDcXoffBAkWyJM664LZhBbCZt5NqiVGZr-OKEdjo7JW-jR0zHHbEMuwqUbU0DxfLnV8N8gFRq8ktkueA22z_5BQhVehpLvTvGzYibNLhe_VJl57s3iL4SL0b0mls1lEbYgdHuPne3KJmufarAP56PKdtuzLQxk1EV4l3MgoGV2u10GCjt4EZaBEi_UORoUyTYeCy0GZHuwzBpMtZ6YtI8L9ZExC2r_w6_x_F-2oeQ-_5_g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 17
         },
         {
             id: "A-18", slug: "super-moto", name: "Super Moto",
             type: "indoor", location: "Indoor", floor: "ground", category: "Racing",
             shortDescription: "Motorcycle racing simulator.", description: "Lean into the curves and feel the speed on our realistic superbike simulator.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 18
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605993/Untitled_design_10_khbbru.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 18
         },
         {
             id: "A-19", slug: "power-hockey", name: "Power Hockey",
             type: "indoor", location: "Indoor", floor: "ground", category: "Sports",
             shortDescription: "Air hockey with a competitive edge.", description: "Challenge a friend to a fast-paced game of classic air hockey.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 19
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786604694/8_fndglq.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 19
         },
         {
             id: "A-20", slug: "horse-ride", name: "Horse Ride",
             type: "indoor", location: "Indoor", floor: "ground", category: "Kids",
             shortDescription: "Classic horse riding fun for kids.", description: "A gentle, classic mechanical horse ride that kids love.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 20
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786606565/Add_a_subheading_qx7z85.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 20
         },
 
         // ==========================================
@@ -158,7 +158,7 @@ const KurunjiData = {
             id: "B-02", slug: "trampoline", name: "Trampoline",
             type: "indoor", location: "Indoor", floor: "first", category: "Active",
             shortDescription: "Bounce to your heart's content.", description: "Defy gravity on our expansive indoor trampoline park.",
-            images: [], videos: [], panorama: "", featured: true, status: "active", displayOrder: 22
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786606863/Add_a_subheading_1_eujwte.png"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 22
         },
         {
             id: "B-03", slug: "ninja", name: "Ninja",
@@ -174,49 +174,49 @@ const KurunjiData = {
             id: "C-01", slug: "crazy-roller", name: "Crazy Roller",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "A dizzying, exciting rolling experience.", description: "Step inside and roll around in our large outdoor crazy rollers.",
-            images: ["https://lh3.googleusercontent.com/aida-public/AB6AXuAMEHzIOL83FVCHP2kI-LcFrcpJ2BKTHUs4s9_JsaEzn5mDZFfbsf-d9vT6aiG4ILfh0Idi_MpFdDYFClug95eYbnVspyLUUdxTjhk83EvcYpT2-ND9UoH5hKW_Q72_BNBHbKc68Vsoa6ikBP4FsWEhg-TrhLOMf6ZhPgIqe40L7lp9wqeQpdqQuG8KluEUO3NytWGZaw8wRmAQbQl_pCHEJz_CVkhwEt9WkNlNuePMG48q3QVl-4Fn5w"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 24
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786608302/Add_a_subheading_3_drvldo.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 24
         },
         {
             id: "C-02", slug: "360-cycle-ride", name: "360 Cycle Ride",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "Pedal your way to a full 360 loop.", description: "Use your own power to pedal your cycle into a complete 360-degree loop.",
-            images: [], videos: [], panorama: "", featured: true, status: "active", displayOrder: 25
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786607898/Add_a_subheading_2_ol1rni.png"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 25
         },
         {
             id: "C-03", slug: "human-gyro-360", name: "Human Gyro 360",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "Experience astronaut training gravity.", description: "Spin in every direction on our thrilling 3-axis human gyroscope.",
-            images: [], videos: [], panorama: "", featured: true, status: "active", displayOrder: 26
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786620752/Add_a_subheading_4_ygt1j1.png"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 26
         },
         {
             id: "C-04", slug: "bull-ride", name: "Bull Ride",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Challenge",
             shortDescription: "Hold on tight and beat the mechanical bull.", description: "Test your balance and grip on our bucking mechanical bull.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 27
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786613199/19_ecbwwk.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 27
         },
         {
             id: "C-05", slug: "bungee-trampoline", name: "Bungee Trampoline",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Active",
             shortDescription: "Jump higher than ever safely harnessed.", description: "Perform flips and massive jumps with the safety of a bungee harness.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 28
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786620752/Add_a_subheading_5_hhrdic.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 28
         },
         {
             id: "C-06", slug: "zero-gravity", name: "Zero Gravity",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "Defy gravity on this intense ride.", description: "Feel the G-forces as you spin and stick to the walls in Zero Gravity.",
-            images: [], videos: [], panorama: "", featured: true, status: "active", displayOrder: 29
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786613199/17_zvxpub.png"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 29
         },
         {
             id: "C-07", slug: "rocket-ejecter", name: "Rocket Ejecter",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "Launch straight up into the Kodaikanal sky.", description: "Experience a sudden rush of adrenaline as you are launched high into the air.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 30
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786613199/18_hgxxwu.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 30
         },
         {
             id: "C-08", slug: "meltdown", name: "MeltDown",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Challenge",
             shortDescription: "Jump and duck to survive the sweeping arms.", description: "An 8-player action game where you must jump and duck to avoid the sweeping mechanical arms.",
-            images: [], videos: [], panorama: "", featured: false, status: "active", displayOrder: 31
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786620752/Add_a_subheading_6_ukwijl.png"], videos: [], panorama: "<iframe src=\"https://momento360.com/e/u/53239a9c0df147e590b8498d1e5ce8da?utm_campaign=embed&amp;utm_source=other&amp;utm_medium=embed&amp;heading=0&amp;pitch=0&amp;field-of-view=75&amp;size=medium&amp;autoplay-annotations=true&amp;display-plan=true\" width=\"900\" height=\"450\" frameborder=\"0\" allowfullscreen=\"true\" marginheight=\"0\" marginwidth=\"0\"></iframe>", featured: false, status: "active", displayOrder: 31
         },
 
         // ==========================================
@@ -226,13 +226,13 @@ const KurunjiData = {
             id: "UP-01", slug: "zipline", name: "Zipline",
             type: "outdoor", location: "Outdoor", floor: "outdoor", category: "Thrill",
             shortDescription: "Fly across the park with stunning views.", description: "An upcoming high-altitude zipline offering incredible views of Kodaikanal.",
-            images: [], videos: [], panorama: "", featured: true, status: "coming-soon", displayOrder: 99
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786608210/Gemini_Generated_Image_1zyl8y1zyl8y1zyl_jkqrow.png"], videos: [], panorama: "<iframe src=\"https://momento360.com/e/u/53239a9c0df147e590b8498d1e5ce8da?utm_campaign=embed&amp;utm_source=other&amp;utm_medium=embed&amp;heading=0&amp;pitch=0&amp;field-of-view=75&amp;size=medium&amp;autoplay-annotations=true&amp;display-plan=true\" width=\"900\" height=\"450\" frameborder=\"0\" allowfullscreen=\"true\" marginheight=\"0\" marginwidth=\"0\"></iframe>", featured: true, status: "coming-soon", displayOrder: 99
         },
         {
             id: "UP-02", slug: "indoor-roller-coaster", name: "Indoor Roller Coaster",
             type: "indoor", location: "Indoor", floor: "ground", category: "Thrill",
             shortDescription: "The ultimate indoor thrill ride.", description: "A fast-paced, twisting indoor roller coaster coming soon to the ground floor.",
-            images: [], videos: [], panorama: "", featured: true, status: "coming-soon", displayOrder: 100
+            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786365432/Gemini_Generated_Image_8k6dv58k6dv58k6d_wzpcwl.png"], videos: [], panorama: "", featured: true, status: "coming-soon", displayOrder: 100
         }
     ],
 

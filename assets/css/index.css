@@ -97,3 +97,6 @@ This is much easier than editing the long Tailwind classes in the HTML.
   background-size: 300% 100%;
   animation: gradientShift 8s linear infinite;
 }
+
+html { scroll-behavior: smooth !important; }
+

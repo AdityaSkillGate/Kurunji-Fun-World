@@ -278,11 +278,25 @@ document.addEventListener('DOMContentLoaded', () => {
             comingSoonGrid.innerHTML = comingSoonItems.map((item, index) => {
                 const gradient = getGradientClass(index + 5);
                 const icon = getCategoryIcon(item.category);
+                
+                let imageContent = '';
+                if (item.images && item.images.length > 0) {
+                    imageContent = `
+                        <img src="${item.images[0]}" alt="${item.name}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    `;
+                } else {
+                    imageContent = `
+                        <div class="absolute inset-0 bg-gradient-to-br ${gradient}"></div>
+                        <span class="material-symbols-outlined text-white/40 text-6xl relative z-10">${icon}</span>
+                    `;
+                }
+
                 return `
-                    <div class="bg-white rounded-2xl overflow-hidden shadow-md border border-outline-variant/30 flex flex-col group opacity-90 hover:opacity-100 transition-opacity">
-                        <div class="relative h-40 bg-gradient-to-br ${gradient} flex items-center justify-center grayscale-[30%]">
-                            <span class="material-symbols-outlined text-white/40 text-6xl">${icon}</span>
-                            <div class="absolute top-4 right-4 bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest flex items-center gap-1">
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-md border border-outline-variant/30 flex flex-col group opacity-90 hover:opacity-100 transition-all">
+                        <div class="relative h-48 flex items-center justify-center grayscale-[20%] overflow-hidden">
+                            ${imageContent}
+                            <div class="absolute top-4 right-4 bg-black/70 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border border-white/20 uppercase tracking-widest flex items-center gap-1 z-20 backdrop-blur-sm">
                                 <span class="material-symbols-outlined text-[14px]">lock_clock</span> Coming Soon
                             </div>
                         </div>
