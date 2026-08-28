@@ -1,9 +1,9 @@
-/**
+﻿/**
  * KURUNJI FUN WORLD - CENTRAL DATA ARCHITECTURE
  * Single Source of Truth for all park attractions, facilities, and media.
  */
 
-const KurunjiData = {
+var KurunjiData = window.KurunjiData || {
     metadata: {
         totalExperiences: 31,
         indoorCount: 23,
@@ -256,7 +256,7 @@ const KurunjiData = {
         { id: "F-02", name: "Toilets", icon: "wc", description: "Clean and accessible restroom facilities." },
         { id: "F-03", name: "24/7 CCTV", icon: "videocam", description: "Continuous security monitoring for your peace of mind." },
         { id: "F-04", name: "Mountain View", icon: "landscape", description: "Beautiful natural surroundings visible from the indoor area." },
-        { id: "F-05", name: "First-floor Sound System", icon: "speaker", description: "Immersive 360° sound and music system on the first floor." }
+        { id: "F-05", name: "First-floor Sound System", icon: "speaker", description: "Immersive 360Â° sound and music system on the first floor." }
     ],
 
     /**
@@ -357,3 +357,4 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.KurunjiData = KurunjiData;
 }
+

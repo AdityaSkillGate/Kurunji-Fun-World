@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('main-content').classList.remove('hidden');
 
         // Initial Load
-        switchTab('feedbacks');
+        switchTab('analytics');
     } else {
         sessionStorage.removeItem('adminToken');
         // Stay on login screen
@@ -83,7 +83,11 @@ function switchTab(tabId) {
 
     // Title update
     const titles = {
-        'feedbacks': 'Feedbacks Management',
+        'analytics': 'Billing & Analytics',
+          'points': 'GF Point Analytics',
+          'coupons': 'Coupons & Promos',
+          'wallet': 'Wallet Lookup',
+          'feedbacks': 'Feedbacks Management',
         'enquiries': 'Group Enquiries',
         'analytics': 'Analytics & Settings',
         'cms': 'Website Content Management'
@@ -700,7 +704,7 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('sidebar').classList.remove('hidden');
             document.getElementById('main-content').classList.remove('hidden');
-            switchTab('feedbacks');
+            switchTab('analytics');
         } else {
             err.innerText = res.message || "Invalid credentials.";
             err.classList.remove('hidden');
@@ -802,4 +806,540 @@ async function handleLogout(e) {
     if(btn) btn.innerHTML = `<span class="material-symbols-outlined animate-spin">progress_activity</span>`;
     await logoutAdmin();
     window.location.reload();
+}
+
+// --- ANALYTICS LOGIC ---
+let charts = {};
+
+function updateAnalyticsTimeframe() {
+    const val = document.getElementById('analytics-timeframe').value;
+    const customContainer = document.getElementById('custom-range-container');
+    
+    if (val === 'custom') {
+        customContainer.classList.remove('hidden');
+        customContainer.classList.add('flex');
+    } else {
+        customContainer.classList.add('hidden');
+        customContainer.classList.remove('flex');
+        loadAnalyticsData();
+    }
+}
+
+async function loadAnalyticsData() {
+    const val = document.getElementById('analytics-timeframe').value;
+    let startDate = null;
+    let endDate = null;
+    const today = new Date();
+    
+    if (val === 'today') {
+        startDate = today.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'yesterday') {
+        const y = new Date(today);
+        y.setDate(y.getDate() - 1);
+        startDate = y.toISOString();
+        endDate = y.toISOString();
+    } else if (val === 'this_week') {
+        const w = new Date(today);
+        w.setDate(w.getDate() - w.getDay()); // Sunday
+        startDate = w.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'this_month') {
+        const m = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate = m.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'custom') {
+        startDate = document.getElementById('analytics-start').value;
+        endDate = document.getElementById('analytics-end').value;
+        if (!startDate || !endDate) return; // Wait for user to apply
+    }
+    
+    document.getElementById('analytics-loading').classList.remove('hidden');
+    document.getElementById('analytics-content').classList.add('hidden');
+    
+    try {
+        const res = await fetchAdminAnalytics(startDate, endDate);
+        if (res.status === 'success') {
+            renderAnalytics(res.stats);
+        } else {
+            console.error(res.message);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        document.getElementById('analytics-loading').classList.add('hidden');
+        document.getElementById('analytics-content').classList.remove('hidden');
+    }
+}
+
+function renderAnalytics(stats) {
+    // Top KPIs
+    document.getElementById('kpi-revenue').textContent = `₹${stats.revenue.total}`;
+    document.getElementById('kpi-transactions').textContent = stats.transactions;
+    document.getElementById('kpi-visitors').textContent = stats.visitors.total;
+    document.getElementById('kpi-adults').textContent = stats.visitors.adults;
+    document.getElementById('kpi-kids').textContent = stats.visitors.children;
+    
+    document.getElementById('kpi-pts-issued').textContent = `● ${stats.wallet.issued}`;
+    document.getElementById('kpi-pts-used').textContent = stats.wallet.used;
+    document.getElementById('kpi-pts-outstanding').textContent = `● ${stats.wallet.outstanding}`;
+    
+    // Revenue Breakdown
+    document.getElementById('rev-gf').textContent = `₹${stats.revenue.gf}`;
+    document.getElementById('rev-ff').textContent = `₹${stats.revenue.ff}`;
+    document.getElementById('rev-out').textContent = `₹${stats.revenue.out}`;
+    
+    initChart('chart-revenue-zone', 'bar', {
+        labels: ['GF Recharges', 'First Floor', 'Outdoor'],
+        datasets: [{
+            label: 'Revenue (₹)',
+            data: [stats.revenue.gf, stats.revenue.ff, stats.revenue.out],
+            backgroundColor: ['#3b82f6', '#f97316', '#22c55e']
+        }]
+    });
+    
+    // Payments
+    document.getElementById('pay-cash').textContent = `₹${stats.payments.cash}`;
+    document.getElementById('pay-upi').textContent = `₹${stats.payments.upi}`;
+    document.getElementById('pay-card').textContent = `₹${stats.payments.card}`;
+    
+    initChart('chart-payments', 'doughnut', {
+        labels: ['Cash', 'UPI', 'Card'],
+        datasets: [{
+            data: [stats.payments.cash, stats.payments.upi, stats.payments.card],
+            backgroundColor: ['#22c55e', '#8b5cf6', '#f59e0b']
+        }]
+    }, { cutout: '70%', plugins: { legend: { position: 'right' } } });
+    
+    // First Floor Visitors
+    initChart('chart-ff-visitors', 'pie', {
+        labels: ['Adults', 'Children'],
+        datasets: [{
+            data: [stats.visitors.adults, stats.visitors.children],
+            backgroundColor: ['#0f172a', '#f97316']
+        }]
+    });
+    
+    // Popular Games
+    renderList('list-gf-games', stats.games.gf);
+    renderList('list-out-games', stats.games.out);
+    document.getElementById('vr-plays').textContent = stats.games.vrPlays;
+    
+    // Adjustments
+    document.getElementById('adj-disc').textContent = `₹${stats.discounts.total}`;
+    document.getElementById('adj-coup').textContent = stats.discounts.coupons;
+    document.getElementById('adj-ref').textContent = `₹${stats.refunds.total}`;
+}
+
+function initChart(id, type, data, extraOptions = {}) {
+    if (charts[id]) charts[id].destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+        type: type,
+        data: data,
+        options: Object.assign({
+            responsive: true,
+            maintainAspectRatio: false,
+        }, extraOptions)
+    });
+}
+
+function renderList(id, obj) {
+    const el = document.getElementById(id);
+    el.innerHTML = "";
+    const sorted = Object.entries(obj).sort((a,b) => b[1] - a[1]).slice(0, 5); // Top 5
+    if (sorted.length === 0) {
+        el.innerHTML = '<div class="text-xs text-slate-400 italic">No data</div>';
+        return;
+    }
+    
+    const max = sorted[0][1];
+    sorted.forEach(([name, count]) => {
+        const pct = (count / max) * 100;
+        el.innerHTML += `
+            <div class="mb-2">
+                <div class="flex justify-between text-xs font-bold mb-1">
+                    <span class="text-slate-700 truncate w-3/4">${name}</span>
+                    <span class="text-slate-500">${count}</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-1.5">
+                    <div class="bg-primary h-1.5 rounded-full" style="width: ${pct}%"></div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+
+// --- POINT ANALYTICS LOGIC ---
+function updatePointsTimeframe() {
+    const val = document.getElementById('points-timeframe').value;
+    const customContainer = document.getElementById('points-custom-range');
+    
+    if (val === 'custom') {
+        customContainer.classList.remove('hidden');
+        customContainer.classList.add('flex');
+    } else {
+        customContainer.classList.add('hidden');
+        customContainer.classList.remove('flex');
+        loadPointsData();
+    }
+}
+
+async function loadPointsData() {
+    const val = document.getElementById('points-timeframe').value;
+    let startDate = null;
+    let endDate = null;
+    const today = new Date();
+    
+    if (val === 'today') {
+        startDate = today.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'yesterday') {
+        const y = new Date(today);
+        y.setDate(y.getDate() - 1);
+        startDate = y.toISOString();
+        endDate = y.toISOString();
+    } else if (val === 'this_week') {
+        const w = new Date(today);
+        w.setDate(w.getDate() - w.getDay());
+        startDate = w.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'this_month') {
+        const m = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate = m.toISOString();
+        endDate = today.toISOString();
+    } else if (val === 'custom') {
+        startDate = document.getElementById('points-start').value;
+        endDate = document.getElementById('points-end').value;
+        if (!startDate || !endDate) return;
+    }
+    
+    document.getElementById('points-loading').classList.remove('hidden');
+    document.getElementById('points-content').classList.add('hidden');
+    
+    try {
+        const res = await fetchPointAnalytics(startDate, endDate);
+        if (res.status === 'success') {
+            renderPointAnalytics(res.stats);
+        } else {
+            console.error(res.message);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        document.getElementById('points-loading').classList.add('hidden');
+        document.getElementById('points-content').classList.remove('hidden');
+    }
+}
+
+function renderPointAnalytics(stats) {
+    document.getElementById('pkpi-inr').textContent = `₹${stats.inrRecharge}`;
+    document.getElementById('pkpi-avg').textContent = `₹${stats.avgRecharge}`;
+    document.getElementById('pkpi-issued').textContent = `● ${stats.pointsIssued}`;
+    document.getElementById('pkpi-bonus').textContent = stats.bonusIssued;
+    document.getElementById('pkpi-consumed').textContent = `● ${stats.pointsConsumed}`;
+    document.getElementById('pkpi-remaining').textContent = `● ${stats.pointsRemaining}`;
+    document.getElementById('pkpi-cards').textContent = stats.numberOfCards;
+    
+    const tbody = document.getElementById('table-points-games');
+    tbody.innerHTML = '';
+    
+    const sortedGames = Object.entries(stats.games).sort((a,b) => b[1].plays - a[1].plays);
+    
+    if (sortedGames.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">No usage recorded</td></tr>`;
+        return;
+    }
+    
+    sortedGames.forEach(([name, data]) => {
+        tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-4 font-bold text-slate-800">${name}</td>
+                <td class="p-4 text-slate-600">● ${data.configuredRate} per person</td>
+                <td class="p-4 font-semibold text-slate-800">${data.plays}</td>
+                <td class="p-4 font-bold text-orange-600">● ${data.pointsConsumed}</td>
+            </tr>
+        `;
+    });
+}
+
+// --- COUPONS LOGIC ---
+let rawCoupons = [];
+
+async function loadCouponsData() {
+    document.getElementById('coupons-loading').classList.remove('hidden');
+    document.getElementById('coupons-content').classList.add('hidden');
+    
+    try {
+        const res = await fetchAdminCoupons();
+        if (res.status === 'success') {
+            rawCoupons = res.coupons;
+            renderCoupons();
+        } else {
+            console.error(res.message);
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        document.getElementById('coupons-loading').classList.add('hidden');
+        document.getElementById('coupons-content').classList.remove('hidden');
+    }
+}
+
+function renderCoupons() {
+    let active = 0, expired = 0, totalRedemptions = 0, totalDiscount = 0, totalBonus = 0;
+    
+    const tbody = document.getElementById('table-coupons');
+    tbody.innerHTML = '';
+    
+    rawCoupons.forEach(c => {
+        if (c.status === 'ACTIVE') active++;
+        if (c.status === 'EXPIRED') expired++;
+        
+        totalRedemptions += c.usage;
+        totalDiscount += c.discountGiven;
+        totalBonus += c.bonusGiven;
+        
+        let statusBadge = '';
+        if (c.status === 'ACTIVE') statusBadge = '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">ACTIVE</span>';
+        else if (c.status === 'EXPIRED') statusBadge = '<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">EXPIRED</span>';
+        else statusBadge = '<span class="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-bold">'+c.status+'</span>';
+        
+        let valStr = c.type === 'PERCENTAGE' ? c.value + '%' : c.value;
+        if (c.type === 'FIXED_AMOUNT') valStr = '₹' + c.value;
+        if (c.type === 'BONUS_POINTS') valStr = '●' + c.value;
+        
+        let remaining = c.maxUses ? (c.maxUses - c.usage) : '∞';
+        
+        tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="p-4 font-black text-primary uppercase">`+c.code+`</td>
+                <td class="p-4 text-xs font-bold text-slate-500">`+c.type+`</td>
+                <td class="p-4 font-bold text-slate-800">`+valStr+`</td>
+                <td class="p-4 text-xs">`+(c.validUntil || 'Lifetime')+`</td>
+                <td class="p-4">
+                    <div class="font-bold text-slate-800">`+c.usage+` <span class="text-xs text-slate-400 font-normal">uses</span></div>
+                    <div class="text-xs text-slate-500">Rem: `+remaining+`</div>
+                </td>
+                <td class="p-4">`+statusBadge+`</td>
+                <td class="p-4 text-right">
+                    <button onclick="editCoupon('`+c.couponId+`')" class="text-blue-600 hover:text-blue-800 font-bold text-xs bg-blue-50 px-2 py-1 rounded">Edit</button>
+                    <button onclick="duplicateCoupon('`+c.couponId+`')" class="text-slate-600 hover:text-slate-800 font-bold text-xs bg-slate-100 px-2 py-1 rounded ml-1">Dup</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    document.getElementById('ckpi-active').textContent = active;
+    document.getElementById('ckpi-expired').textContent = expired;
+    document.getElementById('ckpi-redemptions').textContent = totalRedemptions;
+    document.getElementById('ckpi-discount').textContent = totalDiscount;
+    document.getElementById('ckpi-bonus').textContent = totalBonus;
+    let topCoupon = '-';
+    let maxUses = 0;
+    rawCoupons.forEach(c => {
+        if (c.usage > maxUses) { maxUses = c.usage; topCoupon = c.code; }
+    });
+    const kpiDiscount = document.getElementById('ckpi-discount');
+    if (kpiDiscount) {
+        kpiDiscount.parentElement.parentElement.insertAdjacentHTML('beforeend', `<div class="bg-white p-4 rounded shadow-sm border-l-4 border-purple-500"><div class="text-xs text-slate-500 font-bold uppercase">Top Coupon</div><div class="text-2xl font-bold">${topCoupon}</div><div class="text-xs font-bold text-slate-400 mt-1">${maxUses} uses</div></div>`);
+    }
+}
+
+function openCouponModal() {
+    document.getElementById('coupon-form').reset();
+    document.getElementById('c-id').value = '';
+    document.getElementById('coupon-modal-title').textContent = 'Create Coupon';
+    document.getElementById('coupon-modal').classList.remove('hidden');
+    document.getElementById('coupon-modal').classList.add('flex');
+}
+
+function closeCouponModal() {
+    document.getElementById('coupon-modal').classList.add('hidden');
+    document.getElementById('coupon-modal').classList.remove('flex');
+}
+
+function editCoupon(id) {
+    const c = rawCoupons.find(x => x.couponId === id);
+    if (!c) return;
+    openCouponModal();
+    document.getElementById('coupon-modal-title').textContent = 'Edit Coupon: ' + c.code;
+    
+    document.getElementById('c-id').value = c.couponId;
+    document.getElementById('c-code').value = c.code;
+    document.getElementById('c-status').value = c.status;
+    document.getElementById('c-desc').value = c.description;
+    document.getElementById('c-type').value = c.type;
+    document.getElementById('c-value').value = c.value;
+    
+    if (c.validFrom) document.getElementById('c-from').value = new Date(c.validFrom).toISOString().split('T')[0];
+    if (c.validUntil) document.getElementById('c-until').value = new Date(c.validUntil).toISOString().split('T')[0];
+    
+    document.getElementById('c-max').value = c.maxUses || '';
+    document.getElementById('c-limit').value = c.perCustomerLimit || 1;
+    document.getElementById('c-minorder').value = c.minimumOrder || 0;
+    document.getElementById('c-maxdisc').value = c.maximumDiscount || 0;
+    document.getElementById('c-zone').value = c.applicableZone || 'ALL';
+    document.getElementById('c-new').checked = c.newCustomerOnly;
+}
+
+function duplicateCoupon(id) {
+    const c = rawCoupons.find(x => x.couponId === id);
+    if (!c) return;
+    openCouponModal();
+    document.getElementById('coupon-modal-title').textContent = 'Duplicate Coupon';
+    
+    document.getElementById('c-id').value = ''; // Generate new
+    document.getElementById('c-code').value = c.code + '_COPY';
+    document.getElementById('c-status').value = 'INACTIVE'; // Default to inactive when dupe
+    document.getElementById('c-desc').value = c.description;
+    document.getElementById('c-type').value = c.type;
+    document.getElementById('c-value').value = c.value;
+    
+    if (c.validFrom) document.getElementById('c-from').value = new Date(c.validFrom).toISOString().split('T')[0];
+    if (c.validUntil) document.getElementById('c-until').value = new Date(c.validUntil).toISOString().split('T')[0];
+    
+    document.getElementById('c-max').value = c.maxUses || '';
+    document.getElementById('c-limit').value = c.perCustomerLimit || 1;
+    document.getElementById('c-minorder').value = c.minimumOrder || 0;
+    document.getElementById('c-maxdisc').value = c.maximumDiscount || 0;
+    document.getElementById('c-zone').value = c.applicableZone || 'ALL';
+    document.getElementById('c-new').checked = c.newCustomerOnly;
+}
+
+async function saveCouponData() {
+    const btn = document.getElementById('c-save-btn');
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    
+    const payload = {
+        couponId: document.getElementById('c-id').value,
+        code: document.getElementById('c-code').value,
+        status: document.getElementById('c-status').value,
+        description: document.getElementById('c-desc').value,
+        type: document.getElementById('c-type').value,
+        value: document.getElementById('c-value').value,
+        validFrom: document.getElementById('c-from').value,
+        validUntil: document.getElementById('c-until').value,
+        maxUses: document.getElementById('c-max').value,
+        perCustomerLimit: document.getElementById('c-limit').value,
+        minimumOrder: document.getElementById('c-minorder').value,
+        maximumDiscount: document.getElementById('c-maxdisc').value,
+        applicableZone: document.getElementById('c-zone').value,
+        newCustomerOnly: document.getElementById('c-new').checked
+    };
+    
+    try {
+        const res = await saveAdminCoupon(payload);
+        if (res.status === 'success') {
+            closeCouponModal();
+            loadCouponsData();
+        } else {
+            alert(res.message);
+        }
+    } catch(e) {
+        alert(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Save Coupon";
+    }
+}
+
+
+// --- WALLET LOOKUP LOGIC ---
+const walletSearchForm = document.getElementById('wallet-search-form');
+if (walletSearchForm) {
+    walletSearchForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const query = document.getElementById('wallet-query').value.trim();
+        if (!query) return;
+        
+        const btn = document.getElementById('wallet-search-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Searching';
+        
+        document.getElementById('wallet-content').classList.add('hidden');
+        document.getElementById('wallet-loading').classList.remove('hidden');
+        
+        try {
+            const res = await fetchWalletHistory(query);
+            if (res.status === 'success') {
+                renderWalletHistory(res.wallet, res.customer, res.history);
+                document.getElementById('wallet-content').classList.remove('hidden');
+            } else {
+                alert(res.message);
+            }
+        } catch(err) {
+            alert(err.message);
+        } finally {
+            document.getElementById('wallet-loading').classList.add('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined">search</span> Search';
+        }
+    });
+}
+
+function renderWalletHistory(wallet, customer, history) {
+    document.getElementById('wl-name').textContent = (customer && customer.name) ? customer.name : "Unknown Customer";
+    document.getElementById('wl-phone').textContent = (customer && customer.phone) ? customer.phone : "No Phone";
+    document.getElementById('wl-card').textContent = wallet.cardNumber;
+    document.getElementById('wl-balance').textContent = `● ${wallet.balance}`;
+    
+    const feed = document.getElementById('wl-history-feed');
+    feed.innerHTML = '';
+    
+    if (!history || history.length === 0) {
+        feed.innerHTML = `<div class="p-6 text-center text-slate-500 font-bold italic">No transactions found for this card.</div>`;
+        return;
+    }
+    
+    history.forEach(t => {
+        let icon = 'contactless';
+        let color = 'text-slate-500';
+        let bg = 'bg-slate-100';
+        let amountHtml = '';
+        
+        if (t.type === 'RECHARGE') {
+            icon = 'account_balance_wallet';
+            color = 'text-blue-600';
+            bg = 'bg-blue-100';
+            amountHtml = `<div class="text-xs text-slate-500 font-bold mb-1 uppercase tracking-wider">Money Paid</div>
+                          <div class="text-lg font-black text-slate-800">₹${t.moneyPaid}</div>
+                          <div class="text-sm font-bold text-blue-600 mt-1">● +${t.pointsCredited} points</div>`;
+        } else if (t.type === 'USAGE' || t.type === 'MULTI_GAME_USAGE') {
+            icon = 'sports_esports';
+            color = 'text-orange-600';
+            bg = 'bg-orange-100';
+            amountHtml = `<div class="text-sm font-bold text-orange-600">● -${t.pointsDebited} points</div>`;
+        } else if (t.type === 'POINT_REVERSAL') {
+            icon = 'undo';
+            color = 'text-green-600';
+            bg = 'bg-green-100';
+            amountHtml = `<div class="text-sm font-bold text-green-600">● +${t.pointsCredited} points</div>`;
+        } else {
+            amountHtml = `<div class="text-sm font-bold text-slate-600">● ${t.pointsCredited > 0 ? '+'+t.pointsCredited : '-'+t.pointsDebited} points</div>`;
+        }
+        
+        const dateStr = new Date(t.timestamp).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        
+        feed.innerHTML += `
+            <div class="p-6 flex justify-between items-start hover:bg-slate-50 transition-colors">
+                <div class="flex gap-4">
+                    <div class="${bg} ${color} p-3 rounded-full flex items-center justify-center h-12 w-12 shrink-0">
+                        <span class="material-symbols-outlined">${icon}</span>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-slate-400 mb-1">${dateStr}</div>
+                        <div class="text-lg font-bold text-slate-800">${t.description}</div>
+                        <div class="text-xs text-slate-400 mt-1">TXN: ${t.id}</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    ${amountHtml}
+                    <div class="text-xs text-slate-400 font-bold mt-2 pt-2 border-t border-slate-100">Bal: ● ${t.balanceAfter}</div>
+                </div>
+            </div>
+        `;
+    });
 }

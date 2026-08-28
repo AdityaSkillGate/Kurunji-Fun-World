@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Kurunji Fun World - Park Explorer Logic
  * Handles the rendering, filtering, and searching of attractions in the UI.
  */
@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let searchQuery = '';
 
     // Initialize Counters
-    document.getElementById('count-indoor').textContent = data.metadata.indoorCount;
-    document.getElementById('count-outdoor').textContent = data.metadata.outdoorCount;
+    const countIndoor = document.getElementById('count-indoor'); if (countIndoor) countIndoor.textContent = data.metadata.indoorCount;
+    const countOutdoor = document.getElementById('count-outdoor'); if (countOutdoor) countOutdoor.textContent = data.metadata.outdoorCount;
     // VR is dynamic but we have 6 confirmed, let's keep "40+" as requested by design
 
     /**
@@ -393,3 +393,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
