@@ -1,4 +1,4 @@
-/**
+﻿/**
  * staff-auth.js
  * Handles authentication for the Staff POS system.
  */
@@ -70,26 +70,63 @@ async function requireStaffAuth() {
     return session;
 }
 
+// Global Page Transition Loading Spinner with BFCache & Back-Button Protection
+function getGlobalLoader() {
+    let overlay = document.getElementById('global-page-loader');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'global-page-loader';
+        overlay.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary"></div>';
+        overlay.className = 'fixed inset-0 bg-white/80 z-[9999] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-200';
+        overlay.style.display = 'none';
+        document.body.appendChild(overlay);
+    }
+    return overlay;
+}
 
-// Global Page Transition Loading Spinner
+function hideGlobalLoader() {
+    const overlay = document.getElementById('global-page-loader');
+    if (overlay) {
+        overlay.classList.add('opacity-0');
+        overlay.classList.add('pointer-events-none');
+        overlay.classList.remove('opacity-100');
+        overlay.classList.remove('pointer-events-auto');
+        setTimeout(() => {
+            if (overlay && overlay.classList.contains('opacity-0')) {
+                overlay.style.display = 'none';
+            }
+        }, 200);
+    }
+}
+
+function showGlobalLoader() {
+    const overlay = getGlobalLoader();
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => {
+        overlay.classList.remove('opacity-0');
+        overlay.classList.remove('pointer-events-none');
+        overlay.classList.add('opacity-100');
+        overlay.classList.add('pointer-events-auto');
+    });
+    // Safety auto-dismiss in case navigation is cancelled or delayed
+    setTimeout(hideGlobalLoader, 2000);
+}
+
+// Reset on pageshow (handles browser Back/Forward bfcache)
+window.addEventListener('pageshow', (event) => {
+    hideGlobalLoader();
+});
+window.addEventListener('load', hideGlobalLoader);
 document.addEventListener('DOMContentLoaded', () => {
-    // Inject spinner overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'global-page-loader';
-    overlay.innerHTML = '<div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>';
-    overlay.className = 'fixed inset-0 bg-white/80 z-[9999] flex items-center justify-center hidden transition-opacity duration-300';
-    document.body.appendChild(overlay);
+    hideGlobalLoader();
 
-    // Intercept clicks on links
+    // Attach smooth loading indicator on links without breaking normal navigation
     document.querySelectorAll('a[href]').forEach(link => {
         link.addEventListener('click', function(e) {
             const href = this.getAttribute('href');
-            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
-                e.preventDefault();
-                overlay.classList.remove('hidden');
-                setTimeout(() => {
-                    window.location.href = href;
-                }, 100);
+            // Ignore anchor hashes, javascript links, or modified clicks (ctrl/cmd/shift)
+            if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                showGlobalLoader();
             }
         });
     });
