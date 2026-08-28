@@ -8,6 +8,7 @@ let adultPrice = 0;
 
 let childQty = 0;
 let adultQty = 0;
+let grandTotal = 0;
 let appliedCoupon = null;
 let appliedDiscount = 0;
 let appliedBonus = 0;
@@ -198,7 +199,7 @@ function updateQty(type, change) {
 function updateTotals() {
     const cTotal = childQty * childPrice;
     const aTotal = adultQty * adultPrice;
-    const grandTotal = cTotal + aTotal;
+    grandTotal = cTotal + aTotal;
     
     document.getElementById('summary-child-qty').textContent = childQty;
     document.getElementById('summary-child-total').textContent = `₹${cTotal}`;
@@ -313,6 +314,7 @@ function showReceipt(response, mode) {
 
 
 function handleBillingSubmit() {
+    grandTotal = (childQty * childPrice) + (adultQty * adultPrice);
 
     const errBox = document.getElementById('cart-error');
     if (childQty === 0 && adultQty === 0) {
@@ -359,6 +361,7 @@ function handleBillingSubmit() {
     document.getElementById('review-modal').classList.remove('hidden');
 
 }
+
 
 
 
