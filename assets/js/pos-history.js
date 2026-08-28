@@ -1,3 +1,28 @@
+function formatDisplayDate(dateVal) {
+    if (!dateVal) return "-";
+    let str = String(dateVal).trim();
+    if (str.includes("T")) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+            if (d.getFullYear() < 1970) return "-";
+            return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+    }
+    return str;
+}
+
+function formatDisplayTime(timeVal) {
+    if (!timeVal) return "-";
+    let str = String(timeVal).trim();
+    if (str.includes("1899-12-30") || str.includes("T")) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+    }
+    return str;
+}
+
 ﻿/**
  * pos-history.js
  * Logic for Staff Transaction History Module
@@ -237,8 +262,8 @@ function renderTable(data) {
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
                     <td class="py-3 px-4">
-                        <div class="font-bold text-slate-800 text-xs">${txn.time || '-'}</div>
-                        <div class="text-[11px] text-slate-400">${txn.date || '-'}</div>
+                        <div class="font-bold text-slate-800 text-xs">${formatDisplayTime(txn.time)}</div>
+                        <div class="text-[11px] text-slate-400">${formatDisplayDate(txn.date)}</div>
                     </td>
                     <td class="py-3 px-4 font-mono text-xs text-slate-600 font-semibold">${txn.id}</td>
                     <td class="py-3 px-4">${custDisplay}</td>
@@ -277,7 +302,7 @@ function renderTable(data) {
                     </div>
                     <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                         <span class="font-bold ${typeColor} uppercase tracking-wide text-xs px-2 py-0.5 rounded border ${typeBg}">${txn.type}</span>
-                        <span class="text-slate-400 text-[11px]">${txn.date} ${txn.time}</span>
+                        <span class="text-slate-400 text-[11px]">${formatDisplayDate(txn.date)} ${formatDisplayTime(txn.time)}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
                         <span class="truncate text-[11px]"><span class="text-slate-400">Staff:</span> ${txn.staff ? txn.staff.split('@')[0] : '-'}</span>
