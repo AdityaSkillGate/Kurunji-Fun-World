@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
     <meta charset="utf-8" />
@@ -60,7 +60,7 @@
                     
                     <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
                         <button id="child-minus" class="w-10 h-10 md:w-12 md:h-12 bg-white text-slate-700 rounded-md font-bold text-2xl shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center">-</button>
-                        <input type="number" id="child-qty" value="0" min="0" max="50" class="w-12 md:w-16 text-center font-bold text-xl md:text-2xl border-none bg-transparent focus:ring-0 text-slate-800" readonly />
+                        <input style="padding-right: 2px;" type="number" id="child-qty" value="0" min="0" max="50" class="w-12 md:w-16 text-center font-bold text-xl md:text-2xl border-none bg-transparent focus:ring-0 text-slate-800" readonly />
                         <button id="child-plus" class="w-10 h-10 md:w-12 md:h-12 bg-white text-slate-700 rounded-md font-bold text-2xl shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center">+</button>
                     </div>
                 </div>
@@ -76,7 +76,7 @@
                     
                     <div class="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
                         <button id="adult-minus" class="w-10 h-10 md:w-12 md:h-12 bg-white text-slate-700 rounded-md font-bold text-2xl shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center">-</button>
-                        <input type="number" id="adult-qty" value="0" min="0" max="50" class="w-12 md:w-16 text-center font-bold text-xl md:text-2xl border-none bg-transparent focus:ring-0 text-slate-800" readonly />
+                        <input style="padding-right: 2px;" type="number" id="adult-qty" value="0" min="0" max="50" class="w-12 md:w-16 text-center font-bold text-xl md:text-2xl border-none bg-transparent focus:ring-0 text-slate-800" readonly />
                         <button id="adult-plus" class="w-10 h-10 md:w-12 md:h-12 bg-white text-slate-700 rounded-md font-bold text-2xl shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center">+</button>
                     </div>
                 </div>
@@ -264,7 +264,7 @@
     <!-- Scripts -->
     <script src="assets/js/api.js"></script>
     <script src="assets/js/staff-auth.js"></script>
-    <script src="assets/js/pos-ff.js"></script>
+    <script src="assets/js/pos-ff.js?v=4"></script>
   
     <!-- Unified Order Summary Modal -->
     <div id="review-modal" class="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 hidden">
@@ -289,6 +289,7 @@
 
   </body>
 </html>
+
 
 
 
