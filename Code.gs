@@ -1,8 +1,36 @@
-// ==========================================
+﻿// ==========================================
 // KURUNJI FUN WORLD - APPS SCRIPT BACKEND
 // ==========================================
 
 var SHEET_ID = "1vTdluh04bE1RauMaIzyafInvY51ZEs7P1-d4vq5CwBk";
+
+function formatHistoryDateVal(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "Asia/Kolkata", "yyyy-MM-dd");
+  }
+  var str = String(val).trim();
+  if (str.indexOf("T") !== -1) {
+    var d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      if (d.getFullYear() > 1970) return Utilities.formatDate(d, "Asia/Kolkata", "yyyy-MM-dd");
+    }
+  }
+  return str;
+}
+
+function formatHistoryTimeVal(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "Asia/Kolkata", "hh:mm:ss a");
+  }
+  var str = String(val).trim();
+  if (str.indexOf("T") !== -1 || str.indexOf("1899-12-30") !== -1) {
+    var d = new Date(str);
+    if (!isNaN(d.getTime())) return Utilities.formatDate(d, "Asia/Kolkata", "hh:mm:ss a");
+  }
+  return str;
+}
 
 function sendResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -25,10 +53,17 @@ function ensureHeaders(sheet, expectedHeaders) {
   }
 }
 
+var _globalSpreadsheetInstance = null;
+function getSpreadsheetInstance() {
+  if (!_globalSpreadsheetInstance) {
+    try { _globalSpreadsheetInstance = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
+    if (!_globalSpreadsheetInstance) _globalSpreadsheetInstance = SpreadsheetApp.openById(SHEET_ID);
+  }
+  return _globalSpreadsheetInstance;
+}
+
 function getOrCreateSheet(sheetName, headers) {
-  var ss;
-  try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
-  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+  var ss = getSpreadsheetInstance();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) sheet = ss.insertSheet(sheetName);
   if (headers && headers.length > 0) ensureHeaders(sheet, headers);
@@ -125,8 +160,8 @@ function findOrCreateCustomer(name, phone, email, city) {
 
 function createUnifiedOrder(orderData) {
   var timestamp = new Date().toISOString();
-  var dateStr = new Date().toLocaleDateString('en-US');
-  var timeStr = new Date().toLocaleTimeString('en-US');
+  var dateStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
+  var timeStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "hh:mm:ss a");
   var orderId = orderData.orderPrefix + "-" + new Date().getTime();
   
   var billsSheet = getOrCreateSheet("Bills");
@@ -448,12 +483,18 @@ function doPost(e) {
         }
       }
       
-      if (!walletId) {
+      if (!customerId && (data.customerName || data.phone)) {
         customerId = findOrCreateCustomer(data.customerName, data.phone, data.email, data.city);
+      }
+      
+      if (!walletId) {
         walletId = "WAL-" + new Date().getTime();
         currentBalance = pkg.TotalPoints;
         walletsSheet.appendRow([walletId, cardNumber, customerId, currentBalance, "ACTIVE", timestamp, timestamp]);
       } else {
+        if (customerId && rowIndex > 0) {
+          walletsSheet.getRange(rowIndex, 3).setValue(customerId);
+        }
         currentBalance += pkg.TotalPoints;
         walletsSheet.getRange(rowIndex, 4).setValue(currentBalance);
         walletsSheet.getRange(rowIndex, 7).setValue(timestamp);
@@ -461,18 +502,41 @@ function doPost(e) {
       
       var transId = "TXN-" + new Date().getTime();
       var transSheet = getOrCreateSheet("WalletTransactions");
-      transSheet.appendRow([transId, walletId, "RECHARGE", pkg.PackageID, pkg.TotalPoints, 0, currentBalance, session.email, timestamp, "Payment: " + data.paymentMethod, data.adultCount || 0, data.childCount || 0]);
+      transSheet.appendRow([transId, walletId, "RECHARGE", pkg.PackageID, pkg.TotalPoints, 0, currentBalance, session.email, timestamp, "Payment: " + (data.paymentMethod || "CASH"), data.adultCount || 0, data.childCount || 0]);
       
-      logAdminAction(session.email, session.role, "RECHARGE_CARD", "Card: " + cardNumber + " Amount: " + pkg.PayAmount);
+      // CREATE UNIFIED ORDER IN BILLS AND BILLITEMS SHEETS
+      var billId = createUnifiedOrder({
+         orderPrefix: "B-GF-REC",
+         staffId: session.email,
+         customerId: customerId,
+         subtotal: pkg.PayAmount,
+         total: pkg.PayAmount,
+         paymentMethod: data.paymentMethod || "CASH",
+         coupon: data.couponCode || "",
+         discount: data.discount || 0,
+         items: [{
+             id: pkg.PackageID || "PKG-RECHARGE",
+             name: "Ground Floor Recharge (" + pkg.TotalPoints + " Pts)",
+             zone: "Ground",
+             visitorType: "Mixed",
+             qty: 1,
+             price: pkg.PayAmount,
+             total: pkg.PayAmount
+         }],
+         adultCount: data.adultCount || 0,
+         childCount: data.childCount || 0
+      });
+      
+      logAdminAction(session.email, session.role, "RECHARGE_CARD", "Card: " + cardNumber + " Amount: " + pkg.PayAmount + " Bill: " + billId);
       
       return sendResponse({ 
           status: "success", 
+          billId: billId,
           transaction: transId, 
           balance: currentBalance,
           cardNumber: cardNumber
       });
     }
-
 
     if (action === "processMultiGameUsage") {
       var session = validateToken(data.token);
@@ -640,6 +704,10 @@ function doPost(e) {
          subtotal: grandTotal,
          total: grandTotal,
          paymentMethod: paymentMethod,
+         coupon: data.couponCode || "",
+         discount: data.discount || 0,
+         adultCount: adultQty,
+         childCount: childQty,
          items: items
       });
       
@@ -717,6 +785,10 @@ function doPost(e) {
          subtotal: totalCost,
          total: totalCost,
          paymentMethod: paymentMethod,
+         coupon: data.couponCode || "",
+         discount: data.discount || 0,
+         adultCount: data.adultCount || 0,
+         childCount: data.childCount || 0,
          items: validatedItems
       });
       
@@ -2022,9 +2094,21 @@ function doGet(e) {
         custMap[cRows[i][0]] = { name: cRows[i][1], phone: cRows[i][2] };
     }
     
-    var history = [];
+    // Load Recharge Packages mapping (PackageID -> PayAmount)
+    var rpSheet = getOrCreateSheet("RechargePackages");
+    var rpRows = rpSheet.getDataRange().getValues();
+    var pkgPayMap = {};
+    var pkgPointMap = {};
+    for (var i = 1; i < rpRows.length; i++) {
+        var pid = String(rpRows[i][0]);
+        pkgPayMap[pid] = parseFloat(rpRows[i][1]) || 0;
+        pkgPointMap[pid] = parseFloat(rpRows[i][4]) || 0;
+    }
     
-    // Load Bills
+    var history = [];
+    var seenTxns = {};
+    
+    // 1. Load Bills (First Floor, Outdoor, Add-ons, Ground Floor Recharges, Bookings)
     var bSheet = getOrCreateSheet("Bills");
     var bRows = bSheet.getDataRange().getValues();
     for (var i = bRows.length - 1; i > 0; i--) {
@@ -2037,28 +2121,44 @@ function doGet(e) {
             cName = custMap[cId].name;
             cPhone = custMap[cId].phone;
         }
+        
+        var dateVal = formatHistoryDateVal(bRows[i][2]);
+        var timeVal = formatHistoryTimeVal(bRows[i][3]);
         var type = "Other";
+        var amount = parseFloat(bRows[i][10]) || 0;
+        var points = 0;
+        
         if (orderId.indexOf("B-FF") === 0) type = "First Floor";
         else if (orderId.indexOf("B-OUT") === 0) type = "Outdoor";
         else if (orderId.indexOf("B-ADD") === 0) type = "Add-ons";
-        else if (orderId.indexOf("B-GF") === 0 || orderId.indexOf("TXN-") === 0) type = "Ground Floor Recharge";
+        else if (orderId.indexOf("B-GF-REC") === 0) {
+            type = "Ground Floor Recharge";
+        }
+        else if (orderId.indexOf("B-GF") === 0) {
+            type = "Ground Floor Game Usage";
+            points = amount;
+            amount = 0;
+        }
         else if (orderId.indexOf("BK-") === 0) type = "Booking";
         
+        seenTxns[orderId] = true;
         history.push({
             id: orderId,
-            date: bRows[i][2],
-            time: bRows[i][3],
+            date: dateVal,
+            time: timeVal,
             customerName: cName,
             customerPhone: cPhone,
             type: type,
-            amount: parseFloat(bRows[i][10]) || 0,
-            points: 0,
-            staff: bRows[i][4],
-            status: bRows[i][13]
+            amount: amount,
+            points: points,
+            staff: String(bRows[i][4]),
+            status: String(bRows[i][13]) || "COMPLETED",
+            adultCount: parseInt(bRows[i][14]) || 0,
+            childCount: parseInt(bRows[i][15]) || 0
         });
     }
     
-    // Load WalletTransactions
+    // 2. Load Wallets map
     var wSheet = getOrCreateSheet("Wallets");
     var wRows = wSheet.getDataRange().getValues();
     var walletMap = {}; // walletId -> { cardNumber, customerId }
@@ -2066,13 +2166,16 @@ function doGet(e) {
         walletMap[wRows[i][0]] = { cardNumber: wRows[i][1], customerId: wRows[i][2] };
     }
     
+    // 3. Load WalletTransactions (for legacy transactions or direct wallet logs)
     var wtSheet = getOrCreateSheet("WalletTransactions");
     var wtRows = wtSheet.getDataRange().getValues();
     for (var i = wtRows.length - 1; i > 0; i--) {
         if (!wtRows[i][0]) continue;
-        var txnType = wtRows[i][2]; // RECHARGE or USAGE
-        if (txnType === "RECHARGE") continue; // Handled in Bills above to avoid duplication of amount/points view. Wait, actually we should let WalletTransactions handle it for points transparency, but if we do, we need to merge or separate them. Let's include USAGE explicitly.
+        var txnId = String(wtRows[i][0]);
+        if (seenTxns[txnId]) continue;
         
+        var txnType = String(wtRows[i][2]);
+        var pkgId = String(wtRows[i][3] || "");
         var wId = wtRows[i][1];
         var wInfo = walletMap[wId];
         var cName = "Guest";
@@ -2088,26 +2191,62 @@ function doGet(e) {
         }
         
         var dObj = new Date(wtRows[i][8]);
+        var dateStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "yyyy-MM-dd") : formatHistoryDateVal(wtRows[i][8]);
+        var timeStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "hh:mm:ss a") : formatHistoryTimeVal(wtRows[i][8]);
         
-        history.push({
-            id: wtRows[i][0],
-            cardNumber: cardNo,
-            date: dObj.toLocaleDateString('en-US'),
-            time: dObj.toLocaleTimeString('en-US'),
-            customerName: cName,
-            customerPhone: cPhone,
-            type: "Ground Floor Game Usage",
-            amount: 0,
-            points: parseFloat(wtRows[i][5]) || 0, // points deducted
-            staff: wtRows[i][7],
-            status: "COMPLETED"
-        });
+        seenTxns[txnId] = true;
+        if (txnType === "RECHARGE") {
+            // Find recharge amount in INR
+            var payAmt = pkgPayMap[pkgId] || 0;
+            if (!payAmt && pkgId.indexOf("PKG-") === 0) {
+                var numPart = parseFloat(pkgId.replace("PKG-", ""));
+                if (!isNaN(numPart)) payAmt = numPart;
+            }
+            if (!payAmt) {
+                var pts = parseFloat(wtRows[i][4]) || 0;
+                payAmt = pts;
+            }
+            
+            history.push({
+                id: txnId,
+                cardNumber: cardNo,
+                date: dateStr,
+                time: timeStr,
+                customerName: cName,
+                customerPhone: cPhone,
+                type: "Ground Floor Recharge",
+                amount: payAmt,
+                points: parseFloat(wtRows[i][4]) || 0,
+                staff: String(wtRows[i][7]),
+                status: "COMPLETED",
+                adultCount: parseInt(wtRows[i][10]) || 0,
+                childCount: parseInt(wtRows[i][11]) || 0
+            });
+        } else {
+            history.push({
+                id: txnId,
+                cardNumber: cardNo,
+                date: dateStr,
+                time: timeStr,
+                customerName: cName,
+                customerPhone: cPhone,
+                type: "Ground Floor Game Usage",
+                amount: 0,
+                points: parseFloat(wtRows[i][5]) || 0,
+                staff: String(wtRows[i][7]),
+                status: "COMPLETED",
+                adultCount: parseInt(wtRows[i][10]) || 0,
+                childCount: parseInt(wtRows[i][11]) || 0
+            });
+        }
     }
     
-    // Sort by descending time loosely
+    // Sort by descending time
     history.sort(function(a, b) {
         var da = new Date(a.date + " " + a.time).getTime();
         var db = new Date(b.date + " " + b.time).getTime();
+        if (isNaN(da)) return 1;
+        if (isNaN(db)) return -1;
         return db - da;
     });
     
@@ -2466,6 +2605,7 @@ function doGet(e) {
 
   return sendResponse({ status: "success", message: "API is active. Invalid protected action." });
 }
+
 
 
 
