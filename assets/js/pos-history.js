@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         resetFiltersBtn.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
             if (quickSearchInput) quickSearchInput.value = '';
-            document.getElementById('time-filter').value = 'today';
-            document.getElementById('staff-filter').value = 'me';
+            document.getElementById('time-filter').value = 'all';
+            document.getElementById('staff-filter').value = 'all';
             document.getElementById('status-filter').value = 'ALL';
             document.querySelectorAll('.type-filter').forEach(cb => {
                 cb.checked = (cb.value === 'ALL');
@@ -184,7 +184,13 @@ function applyFilters() {
         }
         
         // 2. Timeframe
-        if (timeFilter === 'today' && new Date(txn.date).toLocaleDateString('en-US') !== todayStr) return false;
+        if (timeFilter === 'today') {
+            const todayISO = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd'
+            const txnDateClean = String(txn.date || '').split('T')[0].trim();
+            if (txnDateClean && txnDateClean !== todayISO && new Date(txn.date).toLocaleDateString('en-US') !== todayStr) {
+                return false;
+            }
+        }
         
         // 3. Staff
         if (staffFilter === 'me' && currentSession && txn.staff !== currentSession.email) return false;

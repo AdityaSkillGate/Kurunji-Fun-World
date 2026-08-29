@@ -1,4 +1,4 @@
-﻿/**
+/**
  * pos.js
  * Logic for the Staff POS Dashboard
  */
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (staffRoleEl) staffRoleEl.textContent = displayRole;
     if (staffNameMobileEl) staffNameMobileEl.textContent = displayName;
 
-    // Set Date
+    // Set Date in IST
     const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
     if (currentDateEl) currentDateEl.textContent = new Date().toLocaleDateString("en-IN", options);
 
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // 4. Load Real Data from History
+    // 4. Load Real Data from History with Session Cache
     async function loadDashboardStats() {
         const statIds = ["stat-visitors", "stat-transactions", "stat-revenue", "stat-wallets", "stat-recharges"];
         statIds.forEach(id => {
@@ -49,37 +49,66 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         try {
-            const today = new Date().toISOString().split("T")[0];
-            const res = await fetchTransactionHistory({ startDate: today, endDate: today });
+            const todayIST = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd' in local IST timezone
+            const cacheKey = 'pos_dashboard_stats_' + todayIST;
+            const cached = sessionStorage.getItem(cacheKey);
+            const cachedTime = sessionStorage.getItem(cacheKey + '_time');
+            
+            // If cached within last 45 seconds, render immediately
+            if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < 45000) {
+                renderStats(JSON.parse(cached));
+                return;
+            }
+
+            const res = await fetchTransactionHistory({ startDate: todayIST, endDate: todayIST });
             if (res && res.status === "success" && Array.isArray(res.history)) {
                 let visitors = 0;
-                let transactions = res.history.length;
+                let transactions = 0;
                 let revenue = 0;
-                let wallets = 0;
-                let recharges = 0;
+                let rechargeRevenue = 0;
+                const distinctCards = new Set();
 
                 res.history.forEach(tx => {
-                    revenue += parseFloat(tx.amount || 0);
                     const txId = String(tx.id || "");
-                    if (txId.startsWith("B-FF") || txId.startsWith("B-OUT")) {
-                        visitors += 2;
+                    const isCompleted = tx.status === "COMPLETED" || tx.status === "CHECKED_IN" || !tx.status;
+                    if (!isCompleted) return;
+
+                    transactions++;
+                    const amt = parseFloat(tx.amount) || 0;
+                    revenue += amt;
+
+                    // Demographic / Visitor calculations
+                    const adultCount = parseInt(tx.adultCount) || 0;
+                    const childCount = parseInt(tx.childCount) || 0;
+                    if (adultCount > 0 || childCount > 0) {
+                        visitors += (adultCount + childCount);
+                    } else if (txId.startsWith("B-FF") || txId.startsWith("B-OUT")) {
+                        visitors += 1;
                     }
-                    if (txId.startsWith("B-GF") && parseFloat(tx.amount) > 0) {
-                        recharges += parseFloat(tx.amount);
-                        wallets += 1;
+
+                    // Card & Recharge calculations
+                    if (tx.cardNumber) {
+                        distinctCards.add(tx.cardNumber);
+                    }
+                    if (tx.type === "Ground Floor Recharge" || txId.startsWith("B-GF-REC")) {
+                        rechargeRevenue += amt;
+                        if (tx.cardNumber) distinctCards.add(tx.cardNumber);
                     }
                 });
 
-                const setEl = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = val;
+                const statsData = {
+                    visitors: visitors > 0 ? visitors + "+" : (transactions > 0 ? transactions + "+" : "0"),
+                    transactions: transactions,
+                    revenue: "₹" + revenue.toLocaleString("en-IN"),
+                    wallets: distinctCards.size > 0 ? distinctCards.size : (rechargeRevenue > 0 ? "Active" : "0"),
+                    recharges: "₹" + rechargeRevenue.toLocaleString("en-IN")
                 };
 
-                setEl("stat-transactions", transactions);
-                setEl("stat-revenue", "\u20B9" + revenue.toLocaleString("en-IN"));
-                setEl("stat-wallets", wallets);
-                setEl("stat-recharges", "\u20B9" + recharges.toLocaleString("en-IN"));
-                setEl("stat-visitors", visitors > 0 ? visitors + "+" : "0");
+                // Cache calculated stats
+                sessionStorage.setItem(cacheKey, JSON.stringify(statsData));
+                sessionStorage.setItem(cacheKey + '_time', Date.now().toString());
+
+                renderStats(statsData);
             } else {
                 statIds.forEach(id => {
                     const el = document.getElementById(id);
@@ -93,6 +122,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (el) el.textContent = "-";
             });
         }
+    }
+
+    function renderStats(stats) {
+        const setEl = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        setEl("stat-transactions", stats.transactions);
+        setEl("stat-revenue", stats.revenue);
+        setEl("stat-wallets", stats.wallets);
+        setEl("stat-recharges", stats.recharges);
+        setEl("stat-visitors", stats.visitors);
     }
 
     loadDashboardStats();

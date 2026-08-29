@@ -21,6 +21,7 @@ function validateDemographics() {
     document.getElementById('adult-count').value = adultQty;
     document.getElementById('child-count').value = childQty;
 }
+
 /**
  * pos-usage.js
  * Logic for Ground Floor Point Redemption POS Module (Multi-Game)
@@ -29,7 +30,7 @@ function validateDemographics() {
 let currentWallet = null;
 let currentCustomerId = null;
 let currentBalance = 0;
-let cart = []; // Array of { attractionId, name, price, quantity }
+let cart = []; // Array of { attractionId, name, price, quantity, total }
 let appliedCoupon = null;
 let appliedDiscount = 0;
 let appliedBonus = 0;
@@ -140,10 +141,10 @@ async function loadWallet() {
         if (response.status === 'success') {
             currentWallet = response.walletId;
             currentCustomerId = response.customerId || "";
-            currentBalance = parseFloat(response.balance);
+            currentBalance = parseFloat(response.balance) || 0;
             
             document.getElementById('current-balance').textContent = `${currentBalance} pts`;
-            document.getElementById('wallet-status').textContent = response.statusText;
+            document.getElementById('wallet-status').textContent = response.statusText || "ACTIVE";
             document.getElementById('wallet-details').classList.remove('hidden');
             
             // Unlock UI
@@ -202,16 +203,22 @@ function updatePendingQty(change) {
 function confirmAddToCard() {
     if (!pendingAttraction) return;
     
+    const qty = pendingQty;
+    const price = pendingAttraction.price;
+    const itemTotal = qty * price;
+    
     // Check if already in cart
     const existingIdx = cart.findIndex(item => item.attractionId === pendingAttraction.attractionId);
     if (existingIdx >= 0) {
-        cart[existingIdx].quantity += pendingQty;
+        cart[existingIdx].quantity += qty;
+        cart[existingIdx].total = cart[existingIdx].quantity * cart[existingIdx].price;
     } else {
         cart.push({
             attractionId: pendingAttraction.attractionId,
             name: pendingAttraction.name,
-            price: pendingAttraction.price,
-            quantity: pendingQty
+            price: price,
+            quantity: qty,
+            total: itemTotal
         });
     }
     
@@ -250,7 +257,7 @@ function updateCartUI() {
         clearBtn.classList.remove('hidden');
         
         cart.forEach((item, idx) => {
-            const itemTotal = item.price * item.quantity;
+            const itemTotal = item.total || (item.price * item.quantity);
             totalPoints += itemTotal;
             
             const div = document.createElement('div');
@@ -294,8 +301,7 @@ function updateCartUI() {
 async function executeOrder() {
     if (!currentWallet || cart.length === 0) return;
     
-    const totalCost = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
+    const totalCost = cart.reduce((sum, item) => sum + (item.total || (item.price * item.quantity)), 0);
     if (currentBalance < totalCost) return;
     
     const btn = document.getElementById('review-confirm-btn');
@@ -306,10 +312,15 @@ async function executeOrder() {
     spinner.classList.add('animate-spin');
     
     try {
+        const adultCount = parseInt(document.getElementById('adult-count')?.value || 0) || 0;
+        const childCount = parseInt(document.getElementById('child-count')?.value || 0) || 0;
+        
         const payload = {
             cardNumber: document.getElementById('card-number-input').value.trim(),
             customerId: currentCustomerId,
-            items: cart
+            items: cart,
+            adultCount: adultCount,
+            childCount: childCount
         };
         
         // Disable everything to prevent duplicate submission
@@ -318,11 +329,14 @@ async function executeOrder() {
         const response = await processMultiGameUsage(payload);
         
         if (response.status === 'success') {
+            document.getElementById('review-modal').classList.add('hidden');
             showResultModal(true, response);
             currentBalance = parseFloat(response.balance);
             document.getElementById('current-balance').textContent = `${currentBalance} pts`;
             cart = [];
             updateCartUI();
+        } else {
+            throw new Error(response.message || "Usage transaction failed");
         }
         
     } catch (e) {
@@ -357,7 +371,7 @@ function showResultModal(isSuccess, data) {
             <div class="p-6 pb-4">
                 <div class="flex justify-between mb-2">
                     <span class="text-slate-500">Bill ID</span>
-                    <span class="font-semibold text-slate-800">${data.billId}</span>
+                    <span class="font-semibold text-slate-800">${data.billId || data.transaction || 'COMPLETED'}</span>
                 </div>
                 <div class="flex justify-between mb-4 pb-4 border-b border-slate-200">
                     <span class="text-slate-500">Total Deducted</span>
@@ -383,11 +397,11 @@ function showResultModal(isSuccess, data) {
             <div class="p-6 pb-4 text-center">
                 <div class="flex justify-between bg-red-50 p-3 rounded-t border border-red-200 border-b-0">
                     <span class="text-red-700 font-semibold">Required:</span>
-                    <span class="font-bold text-red-700">${data.required} pts</span>
+                    <span class="font-bold text-red-700">${data.required || 0} pts</span>
                 </div>
                 <div class="flex justify-between bg-slate-50 p-3 rounded-b border border-slate-200">
                     <span class="text-slate-600 font-semibold">Available:</span>
-                    <span class="font-bold text-slate-800">${data.available} pts</span>
+                    <span class="font-bold text-slate-800">${data.available || 0} pts</span>
                 </div>
             </div>
             <div class="p-4 bg-slate-50 border-t border-slate-200">
@@ -403,33 +417,37 @@ window.closeModal = function() {
     document.getElementById('result-modal').classList.add('hidden');
 };
 
-
 function processMultiUsage() {
-
     if (cart.length === 0) return;
     
-    let totalPointsUsed = cart.reduce((sum, item) => sum + item.total, 0);
-    const balDisplay = document.getElementById('wallet-balance');
-    let currentBalance = 0;
-    if (balDisplay) currentBalance = parseFloat(balDisplay.textContent) || 0;
-    
+    let totalPointsUsed = cart.reduce((sum, item) => sum + (item.total || (item.price * item.quantity)), 0);
     const remaining = currentBalance - totalPointsUsed;
+    
+    let itemsHtml = '';
+    cart.forEach(item => {
+        const lineTotal = item.total || (item.price * item.quantity);
+        itemsHtml += `<div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
+            <span>${item.name} (x${item.quantity})</span>
+            <span>● ${lineTotal} pts</span>
+        </div>`;
+    });
     
     const content = `
         <div class="space-y-4">
             <div class="bg-teal-50 border border-teal-100 p-4 rounded-lg">
                 <div class="text-sm font-bold text-teal-800 mb-2">Ground Floor Game Usage</div>
-                <div class="flex justify-between text-slate-700 font-medium mb-1">
+                ${itemsHtml}
+                <div class="flex justify-between text-slate-700 font-medium mb-1 mt-2 pt-2 border-t border-teal-200">
                     <span>Previous Balance</span>
-                    <span>● ${currentBalance}</span>
+                    <span>● ${currentBalance} pts</span>
                 </div>
-                <div class="flex justify-between text-lg font-bold text-red-600 mt-2">
+                <div class="flex justify-between text-lg font-bold text-red-600 mt-1">
                     <span>Points Used</span>
-                    <span>-● ${totalPointsUsed}</span>
+                    <span>-● ${totalPointsUsed} pts</span>
                 </div>
                 <div class="flex justify-between text-lg font-bold text-teal-700 border-t border-teal-200 mt-2 pt-2">
                     <span>Remaining Balance</span>
-                    <span>● ${remaining}</span>
+                    <span>● ${remaining} pts</span>
                 </div>
             </div>
             <div class="text-xs text-slate-500 italic text-center">* No INR payment required *</div>
@@ -438,10 +456,4 @@ function processMultiUsage() {
     
     document.getElementById('review-content').innerHTML = content;
     document.getElementById('review-modal').classList.remove('hidden');
-
 }
-
-
-
-
-

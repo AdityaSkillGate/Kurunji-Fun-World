@@ -678,18 +678,25 @@ async function processCheckIn(orderId) {
     } catch (error) { throw error; }
 }
 
-async function fetchTransactionHistory() {
+async function fetchTransactionHistory(params = {}) {
     if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
         return new Promise(resolve => setTimeout(() => {
             resolve({ status: 'success', history: [
-                {id: 'B-FF-1234', date: '8/26/2026', time: '10:00 AM', customerName: 'John Doe', customerPhone: '9998887776', type: 'First Floor', amount: 1498, points: 0, staff: 'staff@example.com', status: 'COMPLETED'},
-                {id: 'TXN-9876', date: '8/26/2026', time: '11:30 AM', customerName: 'Jane Smith', customerPhone: '9876543210', type: 'Ground Floor Game Usage', amount: 0, points: 200, staff: 'staff@example.com', status: 'COMPLETED'},
-                {id: 'TXN-5555', cardNumber: '1000000001', date: '8/25/2026', time: '09:00 AM', customerName: 'Alice', customerPhone: '', type: 'Ground Floor Recharge', amount: 3000, points: 0, staff: 'admin@example.com', status: 'COMPLETED'}
+                {id: 'B-FF-1234', date: '2026-08-26', time: '10:00:00 AM', customerName: 'John Doe', customerPhone: '9998887776', type: 'First Floor', amount: 1498, points: 0, staff: 'staff@example.com', status: 'COMPLETED'},
+                {id: 'TXN-9876', date: '2026-08-26', time: '11:30:00 AM', customerName: 'Jane Smith', customerPhone: '9876543210', type: 'Ground Floor Game Usage', amount: 0, points: 200, staff: 'staff@example.com', status: 'COMPLETED'},
+                {id: 'TXN-5555', cardNumber: '1000000001', date: '2026-08-25', time: '09:00:00 AM', customerName: 'Alice', customerPhone: '', type: 'Ground Floor Recharge', amount: 3000, points: 0, staff: 'admin@example.com', status: 'COMPLETED'}
             ] });
         }, 500));
     }
     try {
-        const queryParams = new URLSearchParams({ action: 'fetchTransactionHistory', token: getAuthToken() }).toString();
+        const queryObj = { action: 'fetchTransactionHistory', token: getAuthToken() };
+        if (params && typeof params === 'object') {
+            if (params.startDate) queryObj.startDate = params.startDate;
+            if (params.endDate) queryObj.endDate = params.endDate;
+            if (params.limit) queryObj.limit = params.limit;
+            if (params.staff) queryObj.staff = params.staff;
+        }
+        const queryParams = new URLSearchParams(queryObj).toString();
         const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
         let res = await response.json(); return res;
     } catch (error) { throw error; }
