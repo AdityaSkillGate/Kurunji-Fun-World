@@ -27,7 +27,7 @@ var KurunjiData = window.KurunjiData || {
             type: "indoor", location: "Indoor", floor: "ground", category: "Relaxation",
             shortDescription: "Relax with a mountain view.",
             description: "Unwind in our premium massage chairs while enjoying the breathtaking mountain views of Kodaikanal.",
-            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786262513/massage-char_vzsbmm.png"], videos: [], panorama: "",
+            images: ["https://www.image2url.com/r2/default/images/1788189240066-773c48fa-1787-4427-a53a-a36543aee949.png"], videos: [], panorama: "",
             featured: true, status: "active", displayOrder: 1
         },
         {
@@ -88,7 +88,7 @@ var KurunjiData = window.KurunjiData || {
             id: "A-11", slug: "vr-360", name: "VR 360",
             type: "vr", location: "Indoor", floor: "ground", category: "VR",
             shortDescription: "Immersive 360 virtual reality experiences with 40+ themes.", description: "Step into another world with our state-of-the-art VR 360 simulator featuring over 40 distinct virtual environments.",
-            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605266/Untitled_design_8_tc7sdu.png","https://lh3.googleusercontent.com/aida-public/AB6AXuCwu4hp34A-Y6EaDxqgHHBVINlg4uhE65GhjSeTksz_SLh0PDV5eL_xKGHnH-RRMv1fZqSKr9IARFaHNH4_As_ktkYc4n8lPLYk47ZB7H8wi6S7_vWhdK7DRybqdlrD7ob91fuk4Yy8yjDLdsxiw_Ea5y7Aqc_ODhdbBuGMDx5rk4tWvCsZwA4hr3HmBf84OSSSIr9O_ZJAQc68r10SbjKyKUAWCV8S48UOjPrCYaTiYZGDXbk-_xY92g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 11
+            images: ["https://www.image2url.com/r2/default/images/image-to-webp-1788190131660-1d062765-8a44-43a9-ab06-6e184da621a1.webp","https://lh3.googleusercontent.com/aida-public/AB6AXuCwu4hp34A-Y6EaDxqgHHBVINlg4uhE65GhjSeTksz_SLh0PDV5eL_xKGHnH-RRMv1fZqSKr9IARFaHNH4_As_ktkYc4n8lPLYk47ZB7H8wi6S7_vWhdK7DRybqdlrD7ob91fuk4Yy8yjDLdsxiw_Ea5y7Aqc_ODhdbBuGMDx5rk4tWvCsZwA4hr3HmBf84OSSSIr9O_ZJAQc68r10SbjKyKUAWCV8S48UOjPrCYaTiYZGDXbk-_xY92g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 11
         },
         {
             id: "A-12", slug: "rescue", name: "Rescue",
@@ -118,19 +118,19 @@ var KurunjiData = window.KurunjiData || {
             id: "A-16", slug: "ace-shooter", name: "Ace Shooter",
             type: "indoor", location: "Indoor", floor: "ground", category: "Shooter",
             shortDescription: "Show off your marksmanship.", description: "Aim for the high score in this competitive arcade marksman game.",
-            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605770/Untitled_design_9_gwpp36.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 16
+            images: ["https://www.image2url.com/r2/default/images/image-to-webp-1788190048793-13de124b-4d65-40e3-9f38-375d1596187a.webp"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 16
         },
         {
             id: "A-17", slug: "crusin-blast", name: "Crusin Blast",
             type: "indoor", location: "Indoor", floor: "ground", category: "Racing",
             shortDescription: "High-speed arcade racing.", description: "Burn rubber and drift through extreme tracks in Crusin Blast.",
-            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786606077/Untitled_design_11_qjorev.png","https://lh3.googleusercontent.com/aida-public/AB6AXuBk9YcCKiEQxDcXoffBAkWyJM664LZhBbCZt5NqiVGZr-OKEdjo7JW-jR0zHHbEMuwqUbU0DxfLnV8N8gFRq8ktkueA22z_5BQhVehpLvTvGzYibNLhe_VJl57s3iL4SL0b0mls1lEbYgdHuPne3KJmufarAP56PKdtuzLQxk1EV4l3MgoGV2u10GCjt4EZaBEi_UORoUyTYeCy0GZHuwzBpMtZ6YtI8L9ZExC2r_w6_x_F-2oeQ-_5_g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 17
+            images: ["https://www.image2url.com/r2/default/images/image-to-webp-1788189820739-5f25ef34-2965-4e06-b510-d7af2961247a.webp","https://lh3.googleusercontent.com/aida-public/AB6AXuBk9YcCKiEQxDcXoffBAkWyJM664LZhBbCZt5NqiVGZr-OKEdjo7JW-jR0zHHbEMuwqUbU0DxfLnV8N8gFRq8ktkueA22z_5BQhVehpLvTvGzYibNLhe_VJl57s3iL4SL0b0mls1lEbYgdHuPne3KJmufarAP56PKdtuzLQxk1EV4l3MgoGV2u10GCjt4EZaBEi_UORoUyTYeCy0GZHuwzBpMtZ6YtI8L9ZExC2r_w6_x_F-2oeQ-_5_g"], videos: [], panorama: "", featured: true, status: "active", displayOrder: 17
         },
         {
             id: "A-18", slug: "super-moto", name: "Super Moto",
             type: "indoor", location: "Indoor", floor: "ground", category: "Racing",
             shortDescription: "Motorcycle racing simulator.", description: "Lean into the curves and feel the speed on our realistic superbike simulator.",
-            images: ["https://res.cloudinary.com/dfetzuxxx/image/upload/v1786605993/Untitled_design_10_khbbru.png"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 18
+            images: ["https://www.image2url.com/r2/default/images/image-to-webp-1788189948702-1a82b886-cbfd-415c-b515-7957b1a4804b.webp"], videos: [], panorama: "", featured: false, status: "active", displayOrder: 18
         },
         {
             id: "A-19", slug: "power-hockey", name: "Power Hockey",
