@@ -1,11 +1,10 @@
 /**
  * pos-ff.js
- * Logic for First Floor Direct Billing POS Module
+ * Logic for First Floor Direct Billing POS Module (Unified Single Page)
  */
 
-let childPrice = 0;
-let adultPrice = 0;
-
+let childPrice = 599;
+let adultPrice = 899;
 let childQty = 0;
 let adultQty = 0;
 let grandTotal = 0;
@@ -18,76 +17,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireStaffAuth();
     if (!session) return;
     
-    document.getElementById('app-body').classList.remove('hidden');
+    const appBody = document.getElementById('app-body');
+    if (appBody) appBody.classList.remove('hidden');
 
     // 2. Load Pricing
     loadPricing();
 
-    // 3. UI Handlers
-    document.getElementById('child-minus').addEventListener('click', () => updateQty('child', -1));
-    document.getElementById('child-plus').addEventListener('click', () => updateQty('child', 1));
-    
-    document.getElementById('adult-minus').addEventListener('click', () => updateQty('adult', -1));
-    document.getElementById('adult-plus').addEventListener('click', () => updateQty('adult', 1));
+    // 3. UI Event Listeners
+    function onEl(id, evt, fn) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(evt, fn);
+    }
 
-    document.getElementById('complete-btn').addEventListener('click', handleBillingSubmit);
-    document.getElementById('review-cancel-btn').addEventListener('click', () => document.getElementById('review-modal').classList.add('hidden'));
-    document.getElementById('review-confirm-btn').addEventListener('click', executeOrder);
+    onEl('complete-btn', 'click', handleBillingSubmit);
+    onEl('confirm-btn', 'click', handleBillingSubmit);
+    onEl('review-cancel-btn', 'click', () => {
+        const m = document.getElementById('review-modal');
+        if (m) m.classList.add('hidden');
+    });
+    onEl('review-confirm-btn', 'click', executeOrder);
     
-    document.getElementById('print-btn').addEventListener('click', () => {
-        window.print();
+    onEl('print-btn', 'click', () => window.print());
+    onEl('new-txn-btn', 'click', () => window.location.reload());
+
+    // Payment Method Selection
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+        card.addEventListener('click', function() {
+            if (this.querySelector('input[disabled]')) return;
+            document.querySelectorAll('.payment-method-card').forEach(c => {
+                c.classList.remove('border-primary', 'bg-blue-50/70', 'text-primary');
+                c.classList.add('border-slate-200', 'text-slate-700');
+                const radio = c.querySelector('input[type="radio"]');
+                if (radio) radio.checked = false;
+            });
+            this.classList.remove('border-slate-200', 'text-slate-700');
+            this.classList.add('border-primary', 'bg-blue-50/70', 'text-primary');
+            const r = this.querySelector('input[type="radio"]');
+            if (r) r.checked = true;
+        });
     });
 
-    document.getElementById('new-txn-btn').addEventListener('click', () => {
-        window.location.reload();
-    });
-
-
+    // Coupon Apply Logic
     const applyBtn = document.getElementById('apply-coupon-btn');
     if (applyBtn) {
         applyBtn.addEventListener('click', async () => {
             const codeInput = document.getElementById('coupon-code');
             const msgBox = document.getElementById('coupon-msg');
-            const code = codeInput.value.trim().toUpperCase();
+            const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
             
             if (!code) {
-                msgBox.textContent = "Enter a code";
-                msgBox.className = "text-xs font-bold mt-1 text-red-600";
-                msgBox.classList.remove('hidden');
+                if (msgBox) {
+                    msgBox.textContent = "Enter a code";
+                    msgBox.className = "text-xs font-bold mt-1.5 text-red-600";
+                    msgBox.classList.remove('hidden');
+                }
                 appliedCoupon = null;
                 appliedDiscount = 0;
                 appliedBonus = 0;
-                if(typeof updateTotals === 'function') updateTotals();
-                if(typeof updateCartUI === 'function') updateCartUI();
+                updateTotals();
                 return;
             }
             
-            msgBox.textContent = "Checking...";
-            msgBox.className = "text-xs font-bold mt-1 text-slate-500";
-            msgBox.classList.remove('hidden');
-            
-            // Try to figure out current subtotal and zone
-            let currentSubtotal = 0;
-            let zone = "ALL";
-            if (typeof grandTotal !== 'undefined') currentSubtotal = grandTotal;
-            else if (typeof childQty !== 'undefined' && typeof childPrice !== 'undefined') currentSubtotal = (childQty * childPrice) + (adultQty * adultPrice);
-            else if (typeof cart !== 'undefined') currentSubtotal = cart.reduce((sum, item) => sum + item.total, 0);
-            
-            if (window.location.pathname.includes('-ff')) zone = "FIRST_FLOOR";
-            else if (window.location.pathname.includes('-outdoor')) zone = "OUTDOOR";
-            else if (window.location.pathname.includes('-addons')) zone = "SPECIFIC_PRODUCT";
-            else if (window.location.pathname.includes('-recharge')) {
-                zone = "GROUND_FLOOR_RECHARGE";
-                // Get subtotal from selected package
-                const activePkg = document.querySelector('.border-primary[onclick]');
-                if (activePkg) {
-                    const priceText = activePkg.querySelector('.text-xl').textContent;
-                    currentSubtotal = parseFloat(priceText.replace('₹', ''));
-                }
+            if (msgBox) {
+                msgBox.textContent = "Checking...";
+                msgBox.className = "text-xs font-bold mt-1.5 text-slate-500";
+                msgBox.classList.remove('hidden');
             }
             
+            const subtotal = (childQty * childPrice) + (adultQty * adultPrice);
             try {
-                const res = await validateCoupon(code, currentSubtotal, zone, "ALL", "", false);
+                const res = await validateCoupon(code, subtotal, "FIRST_FLOOR", "ALL", "", false);
                 if (res && res.status === 'success' && res.coupon && res.coupon.valid) {
                     appliedCoupon = res.coupon;
                     appliedDiscount = res.coupon.discount || 0;
@@ -97,28 +96,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (appliedDiscount > 0) msg += ` -₹${appliedDiscount}`;
                     if (appliedBonus > 0) msg += ` +${appliedBonus} pts`;
                     
-                    msgBox.textContent = msg;
-                    msgBox.className = "text-xs font-bold mt-1 text-green-600";
-                    
-                    if(typeof updateTotals === 'function') updateTotals();
-                    if(typeof updateCartUI === 'function') updateCartUI();
+                    if (msgBox) {
+                        msgBox.textContent = msg;
+                        msgBox.className = "text-xs font-bold mt-1.5 text-green-600";
+                    }
                 } else {
                     appliedCoupon = null;
                     appliedDiscount = 0;
                     appliedBonus = 0;
-                    msgBox.textContent = res.message || "Invalid coupon";
-                    msgBox.className = "text-xs font-bold mt-1 text-red-600";
-                    if(typeof updateTotals === 'function') updateTotals();
-                    if(typeof updateCartUI === 'function') updateCartUI();
+                    if (msgBox) {
+                        msgBox.textContent = res ? res.message || "Invalid coupon" : "Invalid coupon";
+                        msgBox.className = "text-xs font-bold mt-1.5 text-red-600";
+                    }
                 }
+                updateTotals();
             } catch (e) {
-                msgBox.textContent = "Error validating";
-                msgBox.className = "text-xs font-bold mt-1 text-red-600";
+                if (msgBox) {
+                    msgBox.textContent = "Error validating";
+                    msgBox.className = "text-xs font-bold mt-1.5 text-red-600";
+                }
             }
         });
     }
 
-    // Customer Lookup Logic
+    // Customer Lookup
     const phoneInput = document.getElementById('cust-phone');
     if (phoneInput) {
         phoneInput.addEventListener('blur', async () => {
@@ -131,28 +132,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (nameInput && !nameInput.value) {
                             nameInput.value = res.customer.name;
                         }
-                        const emailInput = document.getElementById('cust-email');
-                        if (emailInput && !emailInput.value && res.customer.email) {
-                            emailInput.value = res.customer.email;
-                        }
-                        const badge = document.getElementById('existing-cust-badge');
-                        if (badge) badge.classList.remove('hidden');
-                    } else {
-                        const badge = document.getElementById('existing-cust-badge');
-                        if (badge) badge.classList.add('hidden');
                     }
-                } catch (e) {
-                    console.error("Customer lookup failed", e);
-                }
+                } catch (e) {}
             }
         });
-        
-        phoneInput.addEventListener('input', () => {
-            const badge = document.getElementById('existing-cust-badge');
-            if (badge) badge.classList.add('hidden');
-        });
     }
-
 });
 
 async function loadPricing() {
@@ -161,25 +145,24 @@ async function loadPricing() {
     
     try {
         const response = await fetchFirstFloorPricing();
-        
-        if (response.status === 'success') {
-            childPrice = response.pricing.childPrice;
-            adultPrice = response.pricing.adultPrice;
+        if (response && response.status === 'success' && response.pricing) {
+            childPrice = parseFloat(response.pricing.childPrice) || 599;
+            adultPrice = parseFloat(response.pricing.adultPrice) || 899;
             
-            document.getElementById('child-price-display').textContent = `₹${childPrice}`;
-            document.getElementById('adult-price-display').textContent = `₹${adultPrice}`;
-            document.getElementById('ff-activities').textContent = `Includes: ${response.pricing.activities}`;
+            const cpEl = document.getElementById('child-price-display');
+            const apEl = document.getElementById('adult-price-display');
+            const actEl = document.getElementById('ff-activities');
             
-            loading.classList.add('hidden');
-            selection.classList.remove('hidden');
-            
-            updateTotals();
-        } else {
-            throw new Error("Failed to load pricing");
+            if (cpEl) cpEl.textContent = `₹${childPrice}`;
+            if (apEl) apEl.textContent = `₹${adultPrice}`;
+            if (actEl && response.pricing.activities) actEl.textContent = `Includes: ${response.pricing.activities}`;
         }
     } catch (e) {
-        console.error(e);
-        loading.innerHTML = `<span class="text-red-500 font-bold">Error loading pricing. Please check connection.</span>`;
+        console.warn("Using default pricing:", e);
+    } finally {
+        if (loading) loading.classList.add('hidden');
+        if (selection) selection.classList.remove('hidden');
+        updateTotals();
     }
 }
 
@@ -187,11 +170,13 @@ function updateQty(type, change) {
     if (type === 'child') {
         let n = childQty + change;
         if (n >= 0 && n <= 50) childQty = n;
-        document.getElementById('child-qty').value = childQty;
+        const el = document.getElementById('child-qty');
+        if (el) el.value = childQty;
     } else {
         let n = adultQty + change;
         if (n >= 0 && n <= 50) adultQty = n;
-        document.getElementById('adult-qty').value = adultQty;
+        const el = document.getElementById('adult-qty');
+        if (el) el.value = adultQty;
     }
     updateTotals();
 }
@@ -199,171 +184,180 @@ function updateQty(type, change) {
 function updateTotals() {
     const cTotal = childQty * childPrice;
     const aTotal = adultQty * adultPrice;
-    grandTotal = cTotal + aTotal;
+    const subtotal = cTotal + aTotal;
+    grandTotal = Math.max(0, subtotal - appliedDiscount);
     
-    document.getElementById('summary-child-qty').textContent = childQty;
-    document.getElementById('summary-child-total').textContent = `₹${cTotal}`;
-    
-    document.getElementById('summary-adult-qty').textContent = adultQty;
-    document.getElementById('summary-adult-total').textContent = `₹${aTotal}`;
-    
-    document.getElementById('summary-subtotal').textContent = `₹${grandTotal}`;
-    document.getElementById('grand-total-display').textContent = `₹${grandTotal}`;
-    
-    const btn = document.getElementById('review-confirm-btn');
-    const mainBtn = document.getElementById('complete-btn');
-    if (grandTotal > 0) {
-        btn.disabled = false;
-        if(mainBtn) { mainBtn.disabled = false; mainBtn.classList.remove('opacity-50', 'cursor-not-allowed'); }
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    } else {
-        btn.disabled = true;
-        if(mainBtn) { mainBtn.disabled = true; mainBtn.classList.add('opacity-50', 'cursor-not-allowed'); }
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-    }
-}
+    const setT = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
 
-async function executeOrder() {
-    const errorMsg = document.getElementById('error-msg');
-    errorMsg.classList.add('hidden');
+    setT('summary-child-qty', childQty);
+    setT('summary-child-total', `₹${cTotal}`);
+    setT('summary-adult-qty', adultQty);
+    setT('summary-adult-total', `₹${aTotal}`);
+    setT('subtotal-display', `₹${subtotal}`);
+    setT('summary-subtotal', `₹${subtotal}`);
+    setT('grand-total-display', `₹${grandTotal}`);
     
-    if (childQty === 0 && adultQty === 0) {
-        return;
-    }
+    const completeBtn = document.getElementById('complete-btn') || document.getElementById('confirm-btn');
+    const reviewConfirmBtn = document.getElementById('review-confirm-btn');
     
-    const btn = document.getElementById('review-confirm-btn');
-    const mainBtn = document.getElementById('complete-btn');
-    const spinner = document.getElementById('processing-spinner');
-    
-    const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
-    const customerName = document.getElementById('cust-name').value.trim();
-    const phone = document.getElementById('cust-phone').value.trim();
-    
-    btn.disabled = true;
-        if(mainBtn) { mainBtn.disabled = true; mainBtn.classList.add('opacity-50', 'cursor-not-allowed'); }
-    spinner.classList.remove('hidden');
-    spinner.classList.add('animate-spin');
-    
-    try {
-        const payload = {
-            childQty,
-            adultQty,
-            paymentMethod,
-            customerName,
-            couponCode: document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "",
-            phone
-        };
-        
-        const response = await processFirstFloorBilling(payload);
-        
-        if (response.status === 'success') {
-            document.getElementById('review-modal').classList.add('hidden');
-            showReceipt(response, paymentMethod);
-        } else {
-            throw new Error(response.message || "Transaction failed");
+    if (subtotal > 0) {
+        if (completeBtn) {
+            completeBtn.disabled = false;
+            completeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
-        
-    } catch (e) {
-        errorMsg.textContent = e.message;
-        errorMsg.classList.remove('hidden');
-        btn.disabled = false;
-        if(mainBtn) { mainBtn.disabled = false; mainBtn.classList.remove('opacity-50', 'cursor-not-allowed'); }
-    } finally {
-        spinner.classList.add('hidden');
-        spinner.classList.remove('animate-spin');
+        if (reviewConfirmBtn) {
+            reviewConfirmBtn.disabled = false;
+            reviewConfirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    } else {
+        if (completeBtn) {
+            completeBtn.disabled = true;
+            completeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        if (reviewConfirmBtn) {
+            reviewConfirmBtn.disabled = true;
+            reviewConfirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
     }
 }
-
-function showReceipt(response, mode) {
-    // Set QR Code
-    let qrTarget = response.billId || response.transaction || "UNKNOWN";
-    if (window.location.pathname.includes('-recharge')) {
-        qrTarget = response.cardNumber || qrTarget;
-        const txt = document.getElementById('receipt-qr-text');
-        if (txt) txt.textContent = "Wallet Card No: " + qrTarget;
-    }
-    const qrImg = document.getElementById('receipt-qr');
-    if(qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrTarget)}`;
-
-    document.getElementById('receipt-date').textContent = new Date().toLocaleString('en-US');
-    document.getElementById('receipt-bill').textContent = response.billId;
-    
-    const cRow = document.getElementById('receipt-child-row');
-    if (childQty > 0) {
-        cRow.classList.remove('hidden');
-        document.getElementById('receipt-c-qty').textContent = childQty;
-        document.getElementById('receipt-c-total').textContent = `₹${response.childTotal}`;
-    } else {
-        cRow.classList.add('hidden');
-    }
-    
-    const aRow = document.getElementById('receipt-adult-row');
-    if (adultQty > 0) {
-        aRow.classList.remove('hidden');
-        document.getElementById('receipt-a-qty').textContent = adultQty;
-        document.getElementById('receipt-a-total').textContent = `₹${response.adultTotal}`;
-    } else {
-        aRow.classList.add('hidden');
-    }
-
-    document.getElementById('receipt-total').textContent = `₹${response.total}`;
-    document.getElementById('receipt-mode').textContent = mode;
-    
-    document.getElementById('receipt-modal').classList.remove('hidden');
-}
-
 
 function handleBillingSubmit() {
-    grandTotal = (childQty * childPrice) + (adultQty * adultPrice);
-
-    const errBox = document.getElementById('cart-error');
-    if (childQty === 0 && adultQty === 0) {
-        errBox.textContent = "Add at least one visitor.";
-        errBox.classList.remove('hidden');
-        return;
-    }
+    const subtotal = (childQty * childPrice) + (adultQty * adultPrice);
+    if (subtotal === 0) return;
     
-    errBox.classList.add('hidden');
+    grandTotal = Math.max(0, subtotal - appliedDiscount);
     
     let discountBlock = '';
-    let finalPay = grandTotal - appliedDiscount;
-    
     if (appliedDiscount > 0) {
         discountBlock = `<div class="flex justify-between text-green-600 font-semibold mb-2 text-sm"><span>Discount</span><span>-₹${appliedDiscount}</span></div>`;
     }
     
     const content = `
         <div class="space-y-4">
-            <div class="bg-orange-50 border border-orange-100 p-4 rounded-lg">
-                <div class="text-sm font-bold text-orange-800 mb-2">First Floor Access</div>
-                <div class="flex justify-between text-slate-700 font-medium mb-1">
-                    <span>Adults (x${adultQty})</span>
-                    <span>₹${adultQty * adultPrice}</span>
-                </div>
-                <div class="flex justify-between text-slate-700 font-medium mb-1">
-                    <span>Children (x${childQty})</span>
+            <div class="bg-orange-50 border border-orange-100 p-4 rounded-xl">
+                <div class="text-sm font-bold text-orange-800 mb-2">First Floor Access Tickets</div>
+                <div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
+                    <span>Child Tickets (${childQty})</span>
                     <span>₹${childQty * childPrice}</span>
                 </div>
-                <div class="flex justify-between text-slate-700 font-medium mt-2 pt-2 border-t border-orange-200">
+                <div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
+                    <span>Adult Tickets (${adultQty})</span>
+                    <span>₹${adultQty * adultPrice}</span>
+                </div>
+                <div class="flex justify-between text-slate-700 font-medium mt-2 pt-2 border-t border-orange-200 text-sm">
                     <span>Subtotal</span>
-                    <span>₹${grandTotal}</span>
+                    <span>₹${subtotal}</span>
                 </div>
                 ${discountBlock}
                 <div class="flex justify-between text-xl font-bold text-slate-900 border-t border-orange-200 mt-2 pt-2">
-                    <span>Total INR</span>
-                    <span>₹${Math.max(0, finalPay)}</span>
+                    <span>Total Payable</span>
+                    <span class="text-primary">₹${grandTotal}</span>
                 </div>
             </div>
         </div>
     `;
     
-    document.getElementById('review-content').innerHTML = content;
-    document.getElementById('review-modal').classList.remove('hidden');
-
+    const rc = document.getElementById('review-content');
+    const rm = document.getElementById('review-modal');
+    if (rc) rc.innerHTML = content;
+    if (rm) rm.classList.remove('hidden');
 }
 
+async function executeOrder() {
+    if (childQty === 0 && adultQty === 0) return;
+    
+    const errBox = document.getElementById('cart-error') || document.getElementById('error-msg');
+    if (errBox) errBox.classList.add('hidden');
+    
+    const btn = document.getElementById('review-confirm-btn');
+    const completeBtn = document.getElementById('complete-btn');
+    const spinner = document.getElementById('processing-spinner');
+    
+    const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
+    const customerName = document.getElementById('cust-name') ? document.getElementById('cust-name').value.trim() : "";
+    const phone = document.getElementById('cust-phone') ? document.getElementById('cust-phone').value.trim() : "";
+    const couponCode = document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "";
+    
+    if (btn) btn.disabled = true;
+    if (completeBtn) completeBtn.disabled = true;
+    if (spinner) { spinner.classList.remove('hidden'); spinner.classList.add('animate-spin'); }
+    
+    try {
+        const payload = {
+            childQty,
+            adultQty,
+            paymentMethod,
+            customerName: customerName || "Walk-in Customer",
+            phone,
+            couponCode,
+            discount: appliedDiscount
+        };
+        
+        const response = await processFirstFloorBilling(payload);
+        
+        if (response && response.status === 'success') {
+            const rm = document.getElementById('review-modal');
+            if (rm) rm.classList.add('hidden');
+            showReceipt(response, paymentMethod);
+        } else {
+            throw new Error(response ? response.message || "Transaction failed" : "Transaction failed");
+        }
+    } catch (e) {
+        if (errBox) {
+            errBox.textContent = e.message;
+            errBox.classList.remove('hidden');
+        }
+        if (btn) btn.disabled = false;
+        if (completeBtn) completeBtn.disabled = false;
+    } finally {
+        if (spinner) {
+            spinner.classList.add('hidden');
+            spinner.classList.remove('animate-spin');
+        }
+    }
+}
 
+function showReceipt(response, mode) {
+    const offBadge = document.getElementById('receipt-offline-badge');
+    if (offBadge) {
+        if (response && response.offline) offBadge.classList.remove('hidden');
+        else offBadge.classList.add('hidden');
+    }
+    
+    const setT = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
 
+    setT('receipt-date', new Date().toLocaleString('en-IN'));
+    setT('receipt-bill', response.billId || 'B-FF-' + Date.now());
+    setT('receipt-c-qty', childQty);
+    setT('receipt-c-total', `₹${childQty * childPrice}`);
+    setT('receipt-a-qty', adultQty);
+    setT('receipt-a-total', `₹${adultQty * adultPrice}`);
+    setT('receipt-total', `₹${response.total || grandTotal}`);
+    setT('receipt-mode', mode);
+    
+    const childRow = document.getElementById('receipt-child-row');
+    const adultRow = document.getElementById('receipt-adult-row');
+    if (childRow) childRow.style.display = childQty > 0 ? 'flex' : 'none';
+    if (adultRow) adultRow.style.display = adultQty > 0 ? 'flex' : 'none';
+    
+    const qrImg = document.getElementById('receipt-qr');
+    if (qrImg) {
+        const qrData = response.billId || 'B-FF-' + Date.now();
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+    }
+    
+    const modal = document.getElementById('receipt-modal');
+    if (modal) modal.classList.remove('hidden');
+}
 
-
-
+window.closeReceiptModal = function() {
+    const modal = document.getElementById('receipt-modal');
+    if (modal) modal.classList.add('hidden');
+};

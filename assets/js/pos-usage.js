@@ -1,31 +1,35 @@
-let adultQty = 0;
+/**
+ * pos-usage.js
+ * Logic for Ground Floor Point Redemption POS Module (Multi-Game)
+ */
+
+let adultQty = 1;
 let childQty = 0;
 
 function updateDemographics(type, change) {
     if (type === 'adult') {
         let n = adultQty + change;
-        if (n >= 0) adultQty = n;
-        document.getElementById('adult-count').value = adultQty;
+        if (n >= 0 && n <= 50) adultQty = n;
+        const el = document.getElementById('adult-count');
+        if (el) el.value = adultQty;
     } else {
         let n = childQty + change;
-        if (n >= 0) childQty = n;
-        document.getElementById('child-count').value = childQty;
+        if (n >= 0 && n <= 50) childQty = n;
+        const el = document.getElementById('child-count');
+        if (el) el.value = childQty;
     }
 }
 
 function validateDemographics() {
-    let a = parseInt(document.getElementById('adult-count').value) || 0;
-    let c = parseInt(document.getElementById('child-count').value) || 0;
+    const a = parseInt(document.getElementById('adult-count')?.value || 0) || 0;
+    const c = parseInt(document.getElementById('child-count')?.value || 0) || 0;
     adultQty = a < 0 ? 0 : a;
     childQty = c < 0 ? 0 : c;
-    document.getElementById('adult-count').value = adultQty;
-    document.getElementById('child-count').value = childQty;
+    const aEl = document.getElementById('adult-count');
+    const cEl = document.getElementById('child-count');
+    if (aEl) aEl.value = adultQty;
+    if (cEl) cEl.value = childQty;
 }
-
-/**
- * pos-usage.js
- * Logic for Ground Floor Point Redemption POS Module (Multi-Game)
- */
 
 let currentWallet = null;
 let currentCustomerId = null;
@@ -42,141 +46,153 @@ document.addEventListener('DOMContentLoaded', async () => {
     const session = await requireStaffAuth();
     if (!session) return;
     
-    document.getElementById('app-body').classList.remove('hidden');
+    const appBody = document.getElementById('app-body');
+    if (appBody) appBody.classList.remove('hidden');
 
     // 2. Load Attractions
     loadAttractions();
 
     // 3. UI Handlers
-    document.getElementById('load-wallet-btn').addEventListener('click', loadWallet);
-    document.getElementById('card-number-input').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') loadWallet();
-    });
+    function onEl(id, evt, fn) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(evt, fn);
+    }
 
-    document.getElementById('confirm-btn').addEventListener('click', processMultiUsage);
-    document.getElementById('review-cancel-btn').addEventListener('click', () => document.getElementById('review-modal').classList.add('hidden'));
-    document.getElementById('review-confirm-btn').addEventListener('click', executeOrder);
-    document.getElementById('clear-cart-btn').addEventListener('click', () => {
-        if(confirm("Clear all items from this transaction?")) {
+    onEl('load-wallet-btn', 'click', loadWallet);
+    const cInput = document.getElementById('card-number-input');
+    if (cInput) {
+        cInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadWallet();
+        });
+    }
+
+    onEl('confirm-btn', 'click', processMultiUsage);
+    onEl('review-cancel-btn', 'click', () => {
+        const rm = document.getElementById('review-modal');
+        if (rm) rm.classList.add('hidden');
+    });
+    onEl('review-confirm-btn', 'click', executeOrder);
+    onEl('clear-cart-btn', 'click', () => {
+        if (confirm("Clear all items from this transaction?")) {
             cart = [];
             updateCartUI();
         }
     });
 
     // Qty Modal Handlers
-    document.getElementById('modal-qty-minus').addEventListener('click', () => updatePendingQty(-1));
-    document.getElementById('modal-qty-plus').addEventListener('click', () => updatePendingQty(1));
-    document.getElementById('modal-qty-cancel').addEventListener('click', () => {
-        document.getElementById('qty-modal').classList.add('hidden');
+    onEl('modal-qty-minus', 'click', () => updatePendingQty(-1));
+    onEl('modal-qty-plus', 'click', () => updatePendingQty(1));
+    onEl('modal-qty-cancel', 'click', () => {
+        const qm = document.getElementById('qty-modal');
+        if (qm) qm.classList.add('hidden');
         pendingAttraction = null;
     });
-    document.getElementById('modal-qty-add').addEventListener('click', confirmAddToCard);
+    onEl('modal-qty-add', 'click', confirmAddToCard);
 });
 
 async function loadAttractions() {
     const grid = document.getElementById('attraction-grid');
-    const loading = document.getElementById('loading-games');
+    const loading = document.getElementById('loading-games') || document.getElementById('loading-attractions');
     
     try {
         const response = await fetchGroundFloorAttractions();
-        loading.classList.add('hidden');
+        if (loading) loading.classList.add('hidden');
         
-        if (response.attractions && response.attractions.length > 0) {
+        if (grid && response && response.attractions && response.attractions.length > 0) {
+            grid.innerHTML = '';
             response.attractions.forEach(attr => {
                 const card = document.createElement('div');
-                
                 const hasPrice = attr.PointsPerPerson !== null && attr.PointsPerPerson !== "";
                 const price = parseFloat(attr.PointsPerPerson) || 0;
                 
                 if (hasPrice) {
-                    card.className = "bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:border-primary hover:shadow-md transition-all flex flex-col justify-between h-32 active:scale-95";
+                    card.className = "bg-white border-2 border-slate-200 hover:border-primary rounded-xl p-3 sm:p-3.5 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between h-28 sm:h-32 active:scale-95 select-none group";
                     card.onclick = () => openQtyModal(attr, price);
                     card.innerHTML = `
-                        <div class="font-bold text-slate-800 line-clamp-2">${attr.Name}</div>
-                        <div class="flex justify-between items-end mt-2">
-                            <div class="text-primary font-bold bg-blue-50 py-1 px-2 rounded text-sm">
+                        <div class="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 group-hover:text-primary transition-colors">${attr.Name}</div>
+                        <div class="flex justify-between items-end mt-1">
+                            <div class="text-primary font-black bg-blue-50 py-0.5 px-2 rounded-lg text-xs sm:text-sm">
                                 ${price} pts
                             </div>
-                            <span class="material-symbols-outlined text-slate-300">add_circle</span>
+                            <span class="material-symbols-outlined text-primary/70 group-hover:text-primary text-xl">add_circle</span>
                         </div>
                     `;
                 } else {
-                    card.className = "bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between h-32 opacity-60";
+                    card.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-28 opacity-50";
                     card.innerHTML = `
-                        <div class="font-bold text-slate-500 line-clamp-2">${attr.Name}</div>
-                        <div class="text-slate-400 font-semibold text-xs mt-2 self-start">
-                            Not Configured
-                        </div>
+                        <div class="font-bold text-slate-400 text-xs line-clamp-2">${attr.Name}</div>
+                        <div class="text-slate-400 text-[10px] mt-1">Not Configured</div>
                     `;
                 }
-                
                 grid.appendChild(card);
             });
-        } else {
-            grid.innerHTML = `<div class="col-span-full text-slate-500">No attractions configured in the system.</div>`;
         }
     } catch (e) {
         console.error(e);
-        loading.textContent = "Error loading attractions. Please check connection.";
+        if (loading) loading.textContent = "Error loading games.";
     }
 }
 
 async function loadWallet() {
     const cardInput = document.getElementById('card-number-input');
-    const cardNumber = cardInput.value.trim();
+    const cardNumber = cardInput ? cardInput.value.trim().toUpperCase() : "";
     const errorBox = document.getElementById('wallet-error');
     const btn = document.getElementById('load-wallet-btn');
     const spinner = document.getElementById('load-spinner');
     
-    errorBox.classList.add('hidden');
+    if (errorBox) errorBox.classList.add('hidden');
     if (!cardNumber) return;
     
-    btn.disabled = true;
-    spinner.classList.remove('hidden');
-    spinner.classList.add('animate-spin');
+    if (btn) btn.disabled = true;
+    if (spinner) { spinner.classList.remove('hidden'); spinner.classList.add('animate-spin'); }
     
     try {
         const response = await fetchWalletDetails(cardNumber);
         
-        if (response.status === 'success') {
-            currentWallet = response.walletId;
+        if (response && response.status === 'success') {
+            currentWallet = response.walletId || cardNumber;
             currentCustomerId = response.customerId || "";
             currentBalance = parseFloat(response.balance) || 0;
             
-            document.getElementById('current-balance').textContent = `${currentBalance} pts`;
-            document.getElementById('wallet-status').textContent = response.statusText || "ACTIVE";
-            document.getElementById('wallet-details').classList.remove('hidden');
+            const balEl = document.getElementById('current-balance');
+            const statEl = document.getElementById('wallet-status');
+            const detEl = document.getElementById('wallet-details');
+            const overlay = document.getElementById('attraction-overlay');
+            const usageSec = document.getElementById('usage-section');
+            
+            if (balEl) balEl.textContent = `${currentBalance} pts`;
+            if (statEl) statEl.textContent = response.statusText || "ACTIVE";
+            if (detEl) detEl.classList.remove('hidden');
             
             // Unlock UI
-            document.getElementById('attraction-overlay').classList.add('hidden');
-            document.getElementById('usage-section').classList.remove('pointer-events-none', 'opacity-50');
+            if (overlay) overlay.classList.add('hidden');
+            if (usageSec) usageSec.classList.remove('pointer-events-none', 'opacity-50');
             
             // Reset Cart
             cart = [];
             updateCartUI();
-            
         } else {
-            throw new Error(response.message || "Card not found.");
+            throw new Error(response ? response.message || "Card not found." : "Card not found.");
         }
-        
     } catch (e) {
-        errorBox.textContent = e.message;
-        errorBox.classList.remove('hidden');
-        
-        // Lock UI
-        document.getElementById('wallet-details').classList.add('hidden');
-        document.getElementById('attraction-overlay').classList.remove('hidden');
-        document.getElementById('usage-section').classList.add('pointer-events-none', 'opacity-50');
-        currentWallet = null;
+        if (errorBox) {
+            errorBox.textContent = e.message;
+            errorBox.classList.remove('hidden');
+        }
     } finally {
-        btn.disabled = false;
-        spinner.classList.add('hidden');
-        spinner.classList.remove('animate-spin');
+        if (btn) btn.disabled = false;
+        if (spinner) {
+            spinner.classList.add('hidden');
+            spinner.classList.remove('animate-spin');
+        }
     }
 }
 
 function openQtyModal(attr, price) {
-    if (!currentWallet) return;
+    if (!currentWallet) {
+        alert("Please load a card first!");
+        return;
+    }
     
     pendingAttraction = {
         attractionId: attr.AttractionID,
@@ -185,51 +201,52 @@ function openQtyModal(attr, price) {
     };
     pendingQty = 1;
     
-    document.getElementById('qty-modal-title').textContent = attr.Name;
-    document.getElementById('qty-modal-price').textContent = `${price} pts / person`;
-    document.getElementById('modal-qty-input').value = pendingQty;
+    const titleEl = document.getElementById('qty-modal-title');
+    const priceEl = document.getElementById('qty-modal-price');
+    const inputEl = document.getElementById('modal-qty-input');
+    const qm = document.getElementById('qty-modal');
     
-    document.getElementById('qty-modal').classList.remove('hidden');
+    if (titleEl) titleEl.textContent = attr.Name;
+    if (priceEl) priceEl.textContent = `${price} pts / person`;
+    if (inputEl) inputEl.value = pendingQty;
+    if (qm) qm.classList.remove('hidden');
 }
 
 function updatePendingQty(change) {
     let newQty = pendingQty + change;
-    if (newQty >= 1 && newQty <= 50) {
+    if (newQty >= 1 && newQty <= 20) {
         pendingQty = newQty;
-        document.getElementById('modal-qty-input').value = pendingQty;
+        const el = document.getElementById('modal-qty-input');
+        if (el) el.value = pendingQty;
     }
 }
 
 function confirmAddToCard() {
     if (!pendingAttraction) return;
     
-    const qty = pendingQty;
-    const price = pendingAttraction.price;
-    const itemTotal = qty * price;
-    
-    // Check if already in cart
-    const existingIdx = cart.findIndex(item => item.attractionId === pendingAttraction.attractionId);
-    if (existingIdx >= 0) {
-        cart[existingIdx].quantity += qty;
-        cart[existingIdx].total = cart[existingIdx].quantity * cart[existingIdx].price;
+    const existingIndex = cart.findIndex(item => item.attractionId === pendingAttraction.attractionId);
+    if (existingIndex > -1) {
+        cart[existingIndex].quantity += pendingQty;
+        cart[existingIndex].total = cart[existingIndex].quantity * cart[existingIndex].price;
     } else {
         cart.push({
             attractionId: pendingAttraction.attractionId,
             name: pendingAttraction.name,
-            price: price,
-            quantity: qty,
-            total: itemTotal
+            price: pendingAttraction.price,
+            quantity: pendingQty,
+            total: pendingQty * pendingAttraction.price
         });
     }
     
-    document.getElementById('qty-modal').classList.add('hidden');
+    const qm = document.getElementById('qty-modal');
+    if (qm) qm.classList.add('hidden');
     pendingAttraction = null;
     
     updateCartUI();
 }
 
-function removeFromCart(idx) {
-    cart.splice(idx, 1);
+function removeFromCart(index) {
+    cart.splice(index, 1);
     updateCartUI();
 }
 
@@ -238,121 +255,129 @@ function updateCartUI() {
     const emptyMsg = document.getElementById('empty-cart-msg');
     const clearBtn = document.getElementById('clear-cart-btn');
     const confirmBtn = document.getElementById('confirm-btn');
-    const errBox = document.getElementById('cart-error');
+    const costDisplay = document.getElementById('total-cost');
+    const remDisplay = document.getElementById('remaining-balance');
+    const errorBox = document.getElementById('cart-error');
     
-    errBox.classList.add('hidden');
-    
-    // Clear existing
-    Array.from(container.children).forEach(child => { if (child.id !== 'empty-cart-msg') child.remove(); });
-    
-    let totalPoints = 0;
-    
-    if (cart.length === 0) {
-        container.appendChild(emptyMsg);
-        emptyMsg.classList.remove('hidden');
-        clearBtn.classList.add('hidden');
-        confirmBtn.disabled = true;
-    } else {
-        emptyMsg.classList.add('hidden');
-        clearBtn.classList.remove('hidden');
-        
-        cart.forEach((item, idx) => {
-            const itemTotal = item.total || (item.price * item.quantity);
-            totalPoints += itemTotal;
-            
-            const div = document.createElement('div');
-            div.className = "bg-white p-3 rounded border border-slate-200 flex justify-between items-center shadow-sm relative group";
-            div.innerHTML = `
-                <div>
-                    <div class="font-bold text-slate-800 text-sm leading-tight">${item.name}</div>
-                    <div class="text-xs text-slate-500 mt-1">${item.quantity} x ${item.price} pts</div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <div class="font-bold text-primary">${itemTotal} pts</div>
-                    <button class="text-slate-300 hover:text-red-500 transition-colors" onclick="removeFromCart(${idx})" title="Remove">
-                        <span class="material-symbols-outlined text-lg">delete</span>
-                    </button>
-                </div>
-            `;
-            container.appendChild(div);
+    if (container) {
+        Array.from(container.children).forEach(child => {
+            if (child.id !== 'empty-cart-msg') child.remove();
         });
-        
-        confirmBtn.disabled = false;
     }
     
-    document.getElementById('total-cost').textContent = `-${totalPoints} pts`;
+    let totalCost = 0;
     
-    const remaining = currentBalance - totalPoints;
-    const remainingEl = document.getElementById('remaining-balance');
-    remainingEl.textContent = `${remaining} pts`;
-    
-    if (remaining < 0) {
-        remainingEl.classList.remove('text-blue-800');
-        remainingEl.classList.add('text-red-600');
-        errBox.textContent = `Insufficient Balance! Need ${Math.abs(remaining)} more points.`;
-        errBox.classList.remove('hidden');
-        confirmBtn.disabled = true;
+    if (cart.length === 0) {
+        if (container && emptyMsg) {
+            container.appendChild(emptyMsg);
+            emptyMsg.classList.remove('hidden');
+        }
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
     } else {
-        remainingEl.classList.remove('text-red-600');
-        remainingEl.classList.add('text-blue-800');
+        if (emptyMsg) emptyMsg.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        
+        cart.forEach((item, index) => {
+            totalCost += item.total;
+            if (container) {
+                const itemEl = document.createElement('div');
+                itemEl.className = "bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 flex justify-between items-center";
+                itemEl.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-800 text-xs sm:text-sm leading-tight">${item.name}</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">${item.quantity} x ${item.price} pts</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="font-bold text-slate-700 text-sm">${item.total} pts</div>
+                        <button type="button" class="text-slate-400 hover:text-red-500 p-1 transition-colors" onclick="removeFromCart(${index})" title="Remove">
+                            <span class="material-symbols-outlined text-base">delete</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(itemEl);
+            }
+        });
+        
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+    
+    const finalCost = Math.max(0, totalCost - appliedDiscount);
+    const rem = currentBalance - finalCost;
+    
+    if (costDisplay) costDisplay.textContent = `-${finalCost} pts`;
+    if (remDisplay) remDisplay.textContent = `${rem} pts`;
+    
+    if (rem < 0) {
+        if (remDisplay) remDisplay.className = "text-red-600 font-black text-lg";
+        if (errorBox) {
+            errorBox.textContent = `Insufficient Balance! (Need ${Math.abs(rem)} more pts)`;
+            errorBox.classList.remove('hidden');
+        }
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    } else {
+        if (remDisplay) remDisplay.className = "text-blue-700 font-black text-lg";
+        if (errorBox) errorBox.classList.add('hidden');
     }
 }
 
-async function executeOrder() {
-    if (!currentWallet || cart.length === 0) return;
+async function processMultiUsage() {
+    if (cart.length === 0) return;
     
-    const totalCost = cart.reduce((sum, item) => sum + (item.total || (item.price * item.quantity)), 0);
-    if (currentBalance < totalCost) return;
+    const totalPoints = cart.reduce((sum, item) => sum + item.total, 0);
+    const finalPoints = Math.max(0, totalPoints - appliedDiscount);
     
-    const btn = document.getElementById('review-confirm-btn');
-    const spinner = document.getElementById('review-spinner');
+    if (currentBalance < finalPoints) {
+        alert("Insufficient Balance!");
+        return;
+    }
     
-    btn.disabled = true;
-    spinner.classList.remove('hidden');
-    spinner.classList.add('animate-spin');
+    const btn = document.getElementById('confirm-btn');
+    const spinner = document.getElementById('process-spinner');
+    
+    if (btn) btn.disabled = true;
+    if (spinner) { spinner.classList.remove('hidden'); spinner.classList.add('animate-spin'); }
+    
+    const payload = {
+        walletId: currentWallet,
+        customerId: currentCustomerId,
+        games: cart.map(item => ({
+            attractionId: item.attractionId,
+            name: item.name,
+            pointsPerPerson: item.price,
+            playersCount: item.quantity,
+            totalPoints: item.total
+        })),
+        totalPoints: finalPoints,
+        adultCount: adultQty,
+        childCount: childQty
+    };
     
     try {
-        const adultCount = parseInt(document.getElementById('adult-count')?.value || 0) || 0;
-        const childCount = parseInt(document.getElementById('child-count')?.value || 0) || 0;
-        
-        const payload = {
-            cardNumber: document.getElementById('card-number-input').value.trim(),
-            customerId: currentCustomerId,
-            items: cart,
-            adultCount: adultCount,
-            childCount: childCount
-        };
-        
-        // Disable everything to prevent duplicate submission
-        document.querySelectorAll('#attraction-grid > div').forEach(el => el.classList.add('pointer-events-none'));
-        
         const response = await processMultiGameUsage(payload);
         
-        if (response.status === 'success') {
-            document.getElementById('review-modal').classList.add('hidden');
+        if (response && response.status === 'success') {
             showResultModal(true, response);
-            currentBalance = parseFloat(response.balance);
-            document.getElementById('current-balance').textContent = `${currentBalance} pts`;
-            cart = [];
-            updateCartUI();
         } else {
-            throw new Error(response.message || "Usage transaction failed");
+            throw new Error(response ? response.message || "Redemption failed." : "Redemption failed.");
         }
-        
     } catch (e) {
-        let errData;
-        try { errData = JSON.parse(e.message); } catch(ex) { errData = { message: e.message }; }
-        
-        if (errData.code === 'INSUFFICIENT_FUNDS') {
-            showResultModal(false, errData);
-        } else {
-            alert("Error: " + errData.message);
-        }
+        showResultModal(false, { message: e.message });
     } finally {
-        btn.disabled = false;
-        spinner.classList.add('hidden');
-        spinner.classList.remove('animate-spin');
-        document.querySelectorAll('#attraction-grid > div').forEach(el => el.classList.remove('pointer-events-none'));
+        if (btn) btn.disabled = false;
+        if (spinner) {
+            spinner.classList.add('hidden');
+            spinner.classList.remove('animate-spin');
+        }
     }
 }
 
@@ -360,100 +385,67 @@ function showResultModal(isSuccess, data) {
     const modal = document.getElementById('result-modal');
     const content = document.getElementById('result-modal-content');
     
+    if (!modal || !content) return;
+    
     if (isSuccess) {
+        let itemsHtml = '';
+        cart.forEach(item => {
+            itemsHtml += `
+                <div class="flex justify-between text-xs py-1 border-b border-dashed border-slate-200">
+                    <span>${item.name} (x${item.quantity})</span>
+                    <span class="font-bold">${item.total} pts</span>
+                </div>
+            `;
+        });
+        
         content.innerHTML = `
-            <div class="bg-green-600 text-white p-6 text-center">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-3">
-                    <span class="material-symbols-outlined text-4xl">check_circle</span>
-                </div>
-                <h2 class="text-xl font-bold">Transaction Complete</h2>
+            <div class="bg-green-600 text-white p-5 flex flex-col items-center">
+                <span class="material-symbols-outlined text-4xl mb-1">check_circle</span>
+                <h3 class="text-lg font-bold">Games Approved!</h3>
+                <p class="text-xs text-green-100 mt-0.5">Points successfully deducted</p>
             </div>
-            <div class="p-6 pb-4">
-                <div class="flex justify-between mb-2">
-                    <span class="text-slate-500">Bill ID</span>
-                    <span class="font-semibold text-slate-800">${data.billId || data.transaction || 'COMPLETED'}</span>
+            
+            <div class="p-5 space-y-3 text-sm">
+                <div class="space-y-1">
+                    ${itemsHtml}
                 </div>
-                <div class="flex justify-between mb-4 pb-4 border-b border-slate-200">
-                    <span class="text-slate-500">Total Deducted</span>
-                    <span class="font-bold text-red-600">-${data.cost} pts</span>
-                </div>
-                <div class="text-center">
-                    <span class="block text-slate-500 text-sm mb-1">Remaining Balance</span>
-                    <span class="text-3xl font-bold text-blue-800">${data.balance} pts</span>
+                
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Points Deducted:</span>
+                        <span class="font-bold text-red-600">-${data.totalPoints || cart.reduce((s, i) => s + i.total, 0)} pts</span>
+                    </div>
+                    <div class="flex justify-between border-t border-slate-200 pt-1 text-sm font-bold">
+                        <span class="text-slate-700">Remaining Balance:</span>
+                        <span class="text-blue-700">${data.remainingBalance !== undefined ? data.remainingBalance : (currentBalance - cart.reduce((s, i) => s + i.total, 0))} pts</span>
+                    </div>
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 border-t border-slate-200">
-                <button onclick="closeModal()" class="w-full bg-primary text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">Done</button>
+            
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2">
+                <a href="staff-pos.html" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-center text-xs shadow transition-colors flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">home</span> Dashboard
+                </a>
+                <button type="button" onclick="location.reload()" class="flex-1 bg-primary hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-center text-xs shadow transition-colors flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">add_circle</span> Next Card
+                </button>
             </div>
         `;
     } else {
         content.innerHTML = `
-            <div class="bg-red-600 text-white p-6 text-center">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-3">
-                    <span class="material-symbols-outlined text-4xl">cancel</span>
-                </div>
-                <h2 class="text-xl font-bold">Insufficient Points</h2>
+            <div class="bg-red-600 text-white p-5 flex flex-col items-center">
+                <span class="material-symbols-outlined text-4xl mb-1">cancel</span>
+                <h3 class="text-lg font-bold">Deduction Failed</h3>
             </div>
-            <div class="p-6 pb-4 text-center">
-                <div class="flex justify-between bg-red-50 p-3 rounded-t border border-red-200 border-b-0">
-                    <span class="text-red-700 font-semibold">Required:</span>
-                    <span class="font-bold text-red-700">${data.required || 0} pts</span>
-                </div>
-                <div class="flex justify-between bg-slate-50 p-3 rounded-b border border-slate-200">
-                    <span class="text-slate-600 font-semibold">Available:</span>
-                    <span class="font-bold text-slate-800">${data.available || 0} pts</span>
-                </div>
+            <div class="p-5 text-center text-slate-700 text-sm">
+                <p class="font-semibold text-red-600 mb-2">${data.message}</p>
+                <p class="text-xs text-slate-500">Please check card balance or try again.</p>
             </div>
-            <div class="p-4 bg-slate-50 border-t border-slate-200">
-                <button onclick="closeModal()" class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 transition-colors">Dismiss</button>
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200">
+                <button type="button" onclick="document.getElementById('result-modal').classList.add('hidden')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs">Dismiss</button>
             </div>
         `;
     }
     
     modal.classList.remove('hidden');
-}
-
-window.closeModal = function() {
-    document.getElementById('result-modal').classList.add('hidden');
-};
-
-function processMultiUsage() {
-    if (cart.length === 0) return;
-    
-    let totalPointsUsed = cart.reduce((sum, item) => sum + (item.total || (item.price * item.quantity)), 0);
-    const remaining = currentBalance - totalPointsUsed;
-    
-    let itemsHtml = '';
-    cart.forEach(item => {
-        const lineTotal = item.total || (item.price * item.quantity);
-        itemsHtml += `<div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
-            <span>${item.name} (x${item.quantity})</span>
-            <span>● ${lineTotal} pts</span>
-        </div>`;
-    });
-    
-    const content = `
-        <div class="space-y-4">
-            <div class="bg-teal-50 border border-teal-100 p-4 rounded-lg">
-                <div class="text-sm font-bold text-teal-800 mb-2">Ground Floor Game Usage</div>
-                ${itemsHtml}
-                <div class="flex justify-between text-slate-700 font-medium mb-1 mt-2 pt-2 border-t border-teal-200">
-                    <span>Previous Balance</span>
-                    <span>● ${currentBalance} pts</span>
-                </div>
-                <div class="flex justify-between text-lg font-bold text-red-600 mt-1">
-                    <span>Points Used</span>
-                    <span>-● ${totalPointsUsed} pts</span>
-                </div>
-                <div class="flex justify-between text-lg font-bold text-teal-700 border-t border-teal-200 mt-2 pt-2">
-                    <span>Remaining Balance</span>
-                    <span>● ${remaining} pts</span>
-                </div>
-            </div>
-            <div class="text-xs text-slate-500 italic text-center">* No INR payment required *</div>
-        </div>
-    `;
-    
-    document.getElementById('review-content').innerHTML = content;
-    document.getElementById('review-modal').classList.remove('hidden');
 }

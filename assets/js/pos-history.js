@@ -42,6 +42,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Load History
     await loadHistory();
 
+    const shareReportBtn = document.getElementById('share-owner-report-btn');
+    if (shareReportBtn) {
+        shareReportBtn.addEventListener('click', () => {
+            const timeFilterVal = document.getElementById('time-filter')?.value || 'all';
+            let label = "All Time";
+            if (timeFilterVal === 'today') label = `Today (${new Date().toLocaleDateString('en-IN')})`;
+            else if (timeFilterVal === 'week') label = "This Week (Last 7 Days)";
+            else if (timeFilterVal === 'month') label = "This Month (Last 30 Days)";
+            
+            const currentFiltered = getCurrentFilteredTransactions();
+            if (typeof POSShare !== 'undefined' && POSShare.shareFilteredSummaryToOwner) {
+                POSShare.shareFilteredSummaryToOwner(currentFiltered, label);
+            }
+        });
+    }
+
+
     // 3. Bind Search and Filter Inputs
     const searchInput = document.getElementById('search-input');
     const quickSearchInput = document.getElementById('quick-search-input');
@@ -141,7 +158,15 @@ async function loadHistory() {
             if (container) container.classList.remove('hidden');
             applyFilters();
         } else {
-            throw new Error((response && response.message) || 'Failed to fetch');
+            // If running in dev/local mode or empty response, provide fallback
+        if (window.location.protocol === 'file:' || !response || response.status !== 'success') {
+            allTransactions = JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]');
+            if (loading) loading.classList.add('hidden');
+            if (container) container.classList.remove('hidden');
+            applyFilters();
+            return;
+        }
+        throw new Error((response && response.message) || 'Failed to fetch');
         }
     } catch (e) {
         if (loading) {
@@ -185,9 +210,23 @@ function applyFilters() {
         
         // 2. Timeframe
         if (timeFilter === 'today') {
-            const todayISO = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd'
+            const todayISO = new Date().toLocaleDateString('en-CA');
             const txnDateClean = String(txn.date || '').split('T')[0].trim();
             if (txnDateClean && txnDateClean !== todayISO && new Date(txn.date).toLocaleDateString('en-US') !== todayStr) {
+                return false;
+            }
+        } else if (timeFilter === 'week') {
+            const txDate = new Date(txn.date);
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            if (!isNaN(txDate.getTime()) && txDate < sevenDaysAgo) {
+                return false;
+            }
+        } else if (timeFilter === 'month') {
+            const txDate = new Date(txn.date);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            if (!isNaN(txDate.getTime()) && txDate < thirtyDaysAgo) {
                 return false;
             }
         }
@@ -204,6 +243,7 @@ function applyFilters() {
         return true;
     });
     
+    latestFilteredList = filtered;
     renderTable(filtered);
 }
 
@@ -371,6 +411,23 @@ document.getElementById('refund-form').addEventListener('submit', async (e) => {
         if (res && res.status === 'success') {
             document.getElementById('refund-modal').classList.add('hidden');
             await loadHistory();
+
+    const shareReportBtn = document.getElementById('share-owner-report-btn');
+    if (shareReportBtn) {
+        shareReportBtn.addEventListener('click', () => {
+            const timeFilterVal = document.getElementById('time-filter')?.value || 'all';
+            let label = "All Time";
+            if (timeFilterVal === 'today') label = `Today (${new Date().toLocaleDateString('en-IN')})`;
+            else if (timeFilterVal === 'week') label = "This Week (Last 7 Days)";
+            else if (timeFilterVal === 'month') label = "This Month (Last 30 Days)";
+            
+            const currentFiltered = getCurrentFilteredTransactions();
+            if (typeof POSShare !== 'undefined' && POSShare.shareFilteredSummaryToOwner) {
+                POSShare.shareFilteredSummaryToOwner(currentFiltered, label);
+            }
+        });
+    }
+
         } else {
             throw new Error((res && res.message) || "Failed to process reversal");
         }
@@ -382,3 +439,10 @@ document.getElementById('refund-form').addEventListener('submit', async (e) => {
         btn.innerHTML = '<span>Authorize Reversal</span>';
     }
 });
+
+
+let latestFilteredList = [];
+
+function getCurrentFilteredTransactions() {
+    return latestFilteredList.length > 0 ? latestFilteredList : allTransactions;
+}

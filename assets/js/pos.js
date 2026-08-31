@@ -109,6 +109,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 sessionStorage.setItem(cacheKey + '_time', Date.now().toString());
 
                 renderStats(statsData);
+                if (typeof POSShare !== 'undefined') {
+                    POSShare.cachedAllTransactions = res.history;
+                    POSShare.switchDashboardReportPeriod(POSShare.currentSelectedPeriod || 'today');
+                }
             } else {
                 statIds.forEach(id => {
                     const el = document.getElementById(id);

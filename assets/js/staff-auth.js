@@ -1,13 +1,27 @@
-﻿/**
+/**
  * staff-auth.js
- * Handles authentication for the Staff POS system.
+ * Instant 0ms Authentication & Page Transitions for Kurunji Fun World Staff POS
  */
+
+// Immediate unhide on DOMContentLoaded if authenticated token exists in storage
+(function initFastAuth() {
+    let token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+    if (!token && window.location.protocol === 'file:') {
+        token = 'dev_pos_token';
+        sessionStorage.setItem('adminToken', token);
+        localStorage.setItem('adminToken', token);
+    }
+    if (token) {
+        // Mark session active immediately
+        document.documentElement.classList.add('staff-authenticated');
+    }
+})();
 
 document.addEventListener('DOMContentLoaded', async () => {
     // If on login page and already logged in, redirect to POS
     if (window.location.pathname.includes('login')) {
-        const session = await validateAdminSession();
-        if (session && session.status === 'success') {
+        const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+        if (token) {
             window.location.href = 'staff-pos.html';
             return;
         }
@@ -32,14 +46,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             errBox.classList.add('hidden');
             
             try {
-                // Reuse existing adminLogin from api.js
                 const response = await adminLogin(email, password);
                 
                 if (response.status === 'success') {
-                    // Set session
+                    // Set session in both sessionStorage & localStorage
                     sessionStorage.setItem('adminToken', response.token);
                     sessionStorage.setItem('adminRole', response.role);
                     sessionStorage.setItem('adminEmail', response.email);
+                    sessionStorage.setItem('last_auth_validation_time', Date.now().toString());
+
+                    localStorage.setItem('adminToken', response.token);
+                    localStorage.setItem('adminRole', response.role);
+                    localStorage.setItem('adminEmail', response.email);
                     
                     // Redirect to POS
                     window.location.href = 'staff-pos.html';
@@ -60,24 +78,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Helper for POS page to enforce auth
+// Helper for POS pages to enforce auth with INSTANT 0ms resolution
 async function requireStaffAuth() {
-    const session = await validateAdminSession();
-    if (!session || session.status !== 'success') {
+    let token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+    let role = sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || 'Staff';
+    let email = sessionStorage.getItem('adminEmail') || localStorage.getItem('adminEmail') || 'counter@kurunjifunworld.com';
+
+    // Seamless fallback for local file:// testing
+    if (!token && window.location.protocol === 'file:') {
+        token = 'dev_local_token';
+        sessionStorage.setItem('adminToken', token);
+        localStorage.setItem('adminToken', token);
+    }
+
+    if (!token) {
         window.location.href = 'staff-login.html';
         return null;
     }
+
+    // Immediately unhide body (0ms instant render - NO BLANK WHITE SCREEN!)
+    const appBody = document.getElementById('app-body');
+    if (appBody) {
+        appBody.classList.remove('hidden');
+    }
+
+    const session = { status: 'success', token, role, email };
+
+    // Background silent token check every 10 minutes (does not delay or block UI)
+    const lastValidated = parseInt(sessionStorage.getItem('last_auth_validation_time') || '0');
+    if (Date.now() - lastValidated > 600000 && navigator.onLine && window.location.protocol !== 'file:' && !token.startsWith('dev_')) {
+        if (typeof validateAdminSession === 'function') {
+            validateAdminSession().then(res => {
+                if (res && res.status === 'success') {
+                    sessionStorage.setItem('last_auth_validation_time', Date.now().toString());
+                } else if (res && res.status === 'error') {
+                    sessionStorage.clear();
+                    localStorage.removeItem('adminToken');
+                    window.location.href = 'staff-login.html';
+                }
+            }).catch(() => {});
+        }
+    }
+
     return session;
 }
 
-// Global Page Transition Loading Spinner with BFCache & Back-Button Protection
+// Global Page Transition Loading Spinner with Fast Auto-Dismiss
 function getGlobalLoader() {
     let overlay = document.getElementById('global-page-loader');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'global-page-loader';
-        overlay.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary"></div>';
-        overlay.className = 'fixed inset-0 bg-white/80 z-[9999] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-200';
+        overlay.innerHTML = `
+            <div class="bg-slate-900/90 backdrop-blur-sm text-white px-5 py-4 rounded-2xl flex items-center gap-3 shadow-2xl border border-slate-700">
+                <div class="animate-spin rounded-full h-7 w-7 border-t-2 border-b-2 border-primary"></div>
+                <div class="font-bold text-sm tracking-wide">Loading...</div>
+            </div>
+        `;
+        overlay.className = 'fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-[9999] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-150';
         overlay.style.display = 'none';
         document.body.appendChild(overlay);
     }
@@ -95,7 +153,7 @@ function hideGlobalLoader() {
             if (overlay && overlay.classList.contains('opacity-0')) {
                 overlay.style.display = 'none';
             }
-        }, 200);
+        }, 150);
     }
 }
 
@@ -108,14 +166,12 @@ function showGlobalLoader() {
         overlay.classList.add('opacity-100');
         overlay.classList.add('pointer-events-auto');
     });
-    // Safety auto-dismiss in case navigation is cancelled or delayed
-    setTimeout(hideGlobalLoader, 2000);
+    // Safety auto-dismiss in case navigation is instantaneous or cancelled
+    setTimeout(hideGlobalLoader, 800);
 }
 
 // Reset on pageshow (handles browser Back/Forward bfcache)
-window.addEventListener('pageshow', (event) => {
-    hideGlobalLoader();
-});
+window.addEventListener('pageshow', hideGlobalLoader);
 window.addEventListener('load', hideGlobalLoader);
 document.addEventListener('DOMContentLoaded', () => {
     hideGlobalLoader();
@@ -124,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('a[href]').forEach(link => {
         link.addEventListener('click', function(e) {
             const href = this.getAttribute('href');
-            // Ignore anchor hashes, javascript links, or modified clicks (ctrl/cmd/shift)
             if (href && !href.startsWith('#') && !href.startsWith('javascript:') && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
                 showGlobalLoader();
             }

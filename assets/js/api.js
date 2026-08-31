@@ -360,46 +360,49 @@ async function fetchProducts() {
 // ==========================================
 
 async function fetchRechargePackages() {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ packages: [
-                { PackageID: 'RP-01', PayAmount: 1000, BasePoints: 1000, BonusPoints: 0, TotalPoints: 1000 },
-                { PackageID: 'RP-02', PayAmount: 1500, BasePoints: 1500, BonusPoints: 300, TotalPoints: 1800 },
-                { PackageID: 'RP-03', PayAmount: 2000, BasePoints: 2000, BonusPoints: 500, TotalPoints: 2500 }
-            ]});
-        }, 500));
+    const cached = typeof POSData !== 'undefined' ? POSData.get('rechargePackages') : null;
+    
+    if (APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE' && navigator.onLine) {
+        const queryParams = new URLSearchParams({ action: 'fetchRechargePackages', token: getAuthToken() }).toString();
+        const p = fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' }).then(r => r.json());
+        if (typeof POSData !== 'undefined') POSData.refreshInBackground('rechargePackages', p);
     }
     
-    try {
-        const queryParams = new URLSearchParams({ action: 'fetchRechargePackages', token: getAuthToken() }).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        const data = await response.json();
-        if(data.status === 'error') throw new Error(data.message);
-        return data;
-    } catch (error) {
-        throw error;
-    }
+    if (cached && cached.length > 0) return { packages: cached };
+    return { packages: typeof POSData !== 'undefined' ? POSData.DEFAULTS.rechargePackages : [] };
 }
 
 async function processRecharge(rechargeData) {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ status: 'success', transaction: 'TXN-9999', balance: rechargeData.package.TotalPoints, cardNumber: rechargeData.cardNumber });
-        }, 1000));
+    const pkgPoints = rechargeData.package ? rechargeData.package.TotalPoints : 0;
+
+    if (!navigator.onLine) {
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF-REC') : 'B-GF-REC-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processRecharge', rechargeData, res);
+        return res;
     }
-    
+
     try {
         rechargeData.token = getAuthToken();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const response = await fetch(APPS_SCRIPT_URL + '?action=processRecharge', {
             method: 'POST',
             body: JSON.stringify(rechargeData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        throw error;
+        console.warn("Recharge offline fallback:", error.message);
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF-REC') : 'B-GF-REC-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processRecharge', rechargeData, res);
+        return res;
     }
 }
 
@@ -421,43 +424,40 @@ async function fetchWalletDetails(cardNumber) {
 }
 
 async function fetchGroundFloorAttractions() {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ attractions: [
-                { AttractionID: 'GF-01', Name: 'VR 360', PointsPerPerson: 200, Status: 'ACTIVE' },
-                { AttractionID: 'GF-02', Name: 'Boxer', PointsPerPerson: 100, Status: 'ACTIVE' },
-                { AttractionID: 'GF-03', Name: 'Massage Chair', PointsPerPerson: '', Status: 'ACTIVE' }
-            ]});
-        }, 500));
-    }
-    try {
+    const cached = typeof POSData !== 'undefined' ? POSData.get('groundFloorAttractions') : null;
+    
+    if (APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE' && navigator.onLine) {
         const queryParams = new URLSearchParams({ action: 'fetchGroundFloorAttractions', token: getAuthToken() }).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        const data = await response.json();
-        if(data.status === 'error') throw new Error(data.message);
-        return data;
-    } catch (error) {
-        throw error;
+        const p = fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' }).then(r => r.json());
+        if (typeof POSData !== 'undefined') POSData.refreshInBackground('groundFloorAttractions', p);
     }
+    
+    if (cached && cached.length > 0) return { attractions: cached };
+    return { attractions: typeof POSData !== 'undefined' ? POSData.DEFAULTS.groundFloorAttractions : [] };
 }
 
 async function processMultiGameUsage(usageData) {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise((resolve, reject) => setTimeout(() => {
-            if (usageData.items.reduce((sum, i) => sum + (i.price * i.quantity), 0) > 6000) {
-                reject(new Error(JSON.stringify({ status: 'error', code: 'INSUFFICIENT_FUNDS', message: 'Insufficient Points', required: usageData.cost, available: 6000 })));
-            } else {
-                resolve({ status: 'success', transaction: 'TXN-888', balance: 6000 - usageData.cost, cost: usageData.cost });
-            }
-        }, 1000));
+    const totalCost = usageData.items ? usageData.items.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0) : 0;
+
+    if (!navigator.onLine) {
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF') : 'B-GF-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, transaction: offId, balance: Math.max(0, 5000 - totalCost), cost: totalCost, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processMultiGameUsage', usageData, res);
+        return res;
     }
+
     try {
         usageData.token = getAuthToken();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const response = await fetch(APPS_SCRIPT_URL + '?action=processMultiGameUsage', {
             method: 'POST',
             body: JSON.stringify(usageData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') {
             if (data.code === 'INSUFFICIENT_FUNDS') throw new Error(JSON.stringify(data));
@@ -465,90 +465,112 @@ async function processMultiGameUsage(usageData) {
         }
         return data;
     } catch (error) {
-        throw error;
+        if (error.message && error.message.includes('INSUFFICIENT_FUNDS')) throw error;
+        console.warn("Game usage offline fallback:", error.message);
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF') : 'B-GF-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, transaction: offId, balance: 0, cost: totalCost, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processMultiGameUsage', usageData, res);
+        return res;
     }
 }
 
 
 
 async function fetchFirstFloorPricing() {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ status: 'success', pricing: { childPrice: 599, adultPrice: 899, name: 'First Floor Access', activities: 'Ball Pool, Trampoline, Ninja' } });
-        }, 500));
-    }
-    try {
+    // 1. Instant Cache/Default (0ms)
+    const cached = typeof POSData !== 'undefined' ? POSData.get('firstFloorPricing') : null;
+    
+    // Background refresh
+    if (APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE' && navigator.onLine) {
         const queryParams = new URLSearchParams({ action: 'fetchFirstFloorPricing', token: getAuthToken() }).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        const data = await response.json();
-        if(data.status === 'error') throw new Error(data.message);
-        return data;
-    } catch (error) {
-        throw error;
+        const p = fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' }).then(r => r.json());
+        if (typeof POSData !== 'undefined') POSData.refreshInBackground('firstFloorPricing', p);
     }
+    
+    if (cached) return { status: 'success', pricing: cached };
+    return { status: 'success', pricing: { childPrice: 599, adultPrice: 899, name: 'First Floor Access', activities: 'Ball Pool, Trampoline, Ninja' } };
 }
 
 async function processFirstFloorBilling(billData) {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ status: 'success', billId: 'B-FF-999', total: (billData.childQty * 599) + (billData.adultQty * 899), childTotal: billData.childQty * 599, adultTotal: billData.adultQty * 899 });
-        }, 1000));
+    const cTotal = (billData.childQty || 0) * 599;
+    const aTotal = (billData.adultQty || 0) * 899;
+    const total = cTotal + aTotal;
+
+    if (!navigator.onLine) {
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-FF') : 'B-FF-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
+        return res;
     }
+
     try {
         billData.token = getAuthToken();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout for instant UX
+
         const response = await fetch(APPS_SCRIPT_URL + '?action=processFirstFloorBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        throw error;
+        console.warn("Online billing failed or timed out. Falling back to offline local queue:", error.message);
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-FF') : 'B-FF-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
+        return res;
     }
 }
 
 async function fetchOutdoorPricing() {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ status: 'success', attractions: [
-                { AttractionID: 'OUT-01', Name: 'Crazy Roller', Price: 200, Status: 'ACTIVE' },
-                { AttractionID: 'OUT-02', Name: '360 Cycle Ride', Price: 150, Status: 'ACTIVE' },
-                { AttractionID: 'OUT-03', Name: 'Human Gyro 360', Price: '', Status: 'ACTIVE' }
-            ] });
-        }, 500));
-    }
-    try {
+    const cached = typeof POSData !== 'undefined' ? POSData.get('outdoorPricing') : null;
+    
+    if (APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE' && navigator.onLine) {
         const queryParams = new URLSearchParams({ action: 'fetchOutdoorPricing', token: getAuthToken() }).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        const data = await response.json();
-        if(data.status === 'error') throw new Error(data.message);
-        return data;
-    } catch (error) {
-        throw error;
+        const p = fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' }).then(r => r.json());
+        if (typeof POSData !== 'undefined') POSData.refreshInBackground('outdoorPricing', p);
     }
+    
+    if (cached && cached.length > 0) return { status: 'success', attractions: cached };
+    return { status: 'success', attractions: typeof POSData !== 'undefined' ? POSData.DEFAULTS.outdoorPricing : [] };
 }
 
 async function processOutdoorBilling(billData) {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            const total = billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            resolve({ status: 'success', billId: 'B-OUT-999', total: total, items: billData.items });
-        }, 1000));
+    const total = billData.items ? billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0) : 0;
+
+    if (!navigator.onLine) {
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-OUT') : 'B-OUT-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
+        return res;
     }
+
     try {
         billData.token = getAuthToken();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const response = await fetch(APPS_SCRIPT_URL + '?action=processOutdoorBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        throw error;
+        console.warn("Outdoor billing offline fallback:", error.message);
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-OUT') : 'B-OUT-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
+        return res;
     }
 }
 
@@ -574,44 +596,49 @@ async function fetchCustomerByPhone(phone) {
 }
 
 async function fetchAddons() {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            resolve({ status: 'success', addons: [
-                { ProductID: 'PROD-01', Name: 'Grip Socks', Category: 'Merchandise', Price: 100, TaxRate: 5, Status: 'ACTIVE' },
-                { ProductID: 'PROD-02', Name: 'Water Bottle', Category: 'F&B', Price: 50, TaxRate: 0, Status: 'ACTIVE' }
-            ] });
-        }, 500));
-    }
-    try {
+    const cached = typeof POSData !== 'undefined' ? POSData.get('addons') : null;
+    
+    if (APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE' && navigator.onLine) {
         const queryParams = new URLSearchParams({ action: 'fetchAddons', token: getAuthToken() }).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        const data = await response.json();
-        if(data.status === 'error') throw new Error(data.message);
-        return data;
-    } catch (error) {
-        throw error;
+        const p = fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' }).then(r => r.json());
+        if (typeof POSData !== 'undefined') POSData.refreshInBackground('addons', p);
     }
+    
+    if (cached && cached.length > 0) return { status: 'success', addons: cached };
+    return { status: 'success', addons: typeof POSData !== 'undefined' ? POSData.DEFAULTS.addons : [] };
 }
 
 async function processAddonsBilling(billData) {
-    if (APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-        return new Promise(resolve => setTimeout(() => {
-            const total = billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-            resolve({ status: 'success', billId: 'B-ADD-999', total: total, items: billData.items });
-        }, 1000));
+    const total = billData.items ? billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0) : 0;
+
+    if (!navigator.onLine) {
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-ADD') : 'B-ADD-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processAddonsBilling', billData, res);
+        return res;
     }
+
     try {
         billData.token = getAuthToken();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const response = await fetch(APPS_SCRIPT_URL + '?action=processAddonsBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        throw error;
+        console.warn("Addons billing offline fallback:", error.message);
+        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-ADD') : 'B-ADD-OFF-' + Date.now();
+        const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
+        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processAddonsBilling', billData, res);
+        return res;
     }
 }
 
