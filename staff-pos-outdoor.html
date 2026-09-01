@@ -36,12 +36,12 @@
     <!-- Main Container: Unified Single-Page Flow -->
     <main class="flex-1 w-full max-w-2xl mx-auto p-3 sm:p-5 space-y-4 pb-12">
       
-      <!-- STEP 1: Customer Details & Members Count -->
+      <!-- STEP 1: Customer Details -->
       <section class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div class="flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-blue-100 text-primary font-bold text-xs flex items-center justify-center">1</span>
-            <h2 class="font-bold text-slate-800 text-sm sm:text-base">Customer Details &amp; Members</h2>
+            <h2 class="font-bold text-slate-800 text-sm sm:text-base">Customer Details</h2>
           </div>
           <span class="text-[11px] text-slate-400 font-medium">Optional</span>
         </div>
@@ -56,26 +56,6 @@
             <input type="tel" id="cust-phone" placeholder="10-digit mobile" maxlength="10" class="w-full rounded-xl border-slate-300 text-sm focus:border-primary focus:ring-primary py-2 px-3 bg-slate-50/50" />
           </div>
         </div>
-
-        <!-- Members Count (Adults & Children) -->
-        <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-700">Adults</span>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="updateDemographics('adult', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
-              <input type="number" id="adult-count" value="1" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
-              <button type="button" onclick="updateDemographics('adult', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
-            </div>
-          </div>
-          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-700">Children</span>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="updateDemographics('child', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
-              <input type="number" id="child-count" value="0" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
-              <button type="button" onclick="updateDemographics('child', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
-            </div>
-          </div>
-        </div>
       </section>
 
       <!-- STEP 2: Select Outdoor Attractions -->
@@ -88,7 +68,7 @@
           <span class="text-xs text-primary font-semibold">Tap to Add</span>
         </div>
 
-        <div id="loading-attractions" class="flex items-center gap-2 text-slate-500 py-8 justify-center hidden">
+        <div id="loading-attractions" class="flex items-center gap-2 text-slate-500 py-8 justify-center">
             <span class="material-symbols-outlined animate-spin text-2xl text-primary">progress_activity</span>
             <span class="text-sm">Loading rides...</span>
         </div>
@@ -106,7 +86,7 @@
             <span class="w-6 h-6 rounded-full bg-blue-100 text-primary font-bold text-xs flex items-center justify-center">3</span>
             <h2 class="font-bold text-slate-800 text-sm sm:text-base">Selected Rides</h2>
           </div>
-          <button type="button" id="clear-cart-btn" class="text-xs text-red-600 hover:text-red-800 font-bold hidden flex items-center gap-1">
+          <button type="button" id="clear-cart-btn" class="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1">
             <span class="material-symbols-outlined text-sm">delete_sweep</span> Clear All
           </button>
         </div>
@@ -176,28 +156,67 @@
         <button id="confirm-btn" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-white/20" disabled>
             <span class="material-symbols-outlined text-2xl">receipt_long</span>
             <span>Review Order &amp; Pay</span>
-            <span class="material-symbols-outlined text-lg hidden animate-spin" id="process-spinner">progress_activity</span>
+            <span class="material-symbols-outlined text-lg animate-spin hidden" id="process-spinner">progress_activity</span>
         </button>
       </section>
 
     </main>
 
-    <!-- Quantity Modal -->
+    <!-- Quantity Modal (Select Adults & Children for Ride) -->
     <div id="qty-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-5 flex flex-col items-center animate-in fade-in zoom-in-95 duration-150">
-            <h3 class="text-base font-bold text-slate-800 mb-0.5 text-center" id="qty-modal-title">Ride Name</h3>
-            <p class="text-primary font-bold text-sm mb-4" id="qty-modal-price">₹150 / visitor</p>
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div class="text-center mb-4 border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-800" id="qty-modal-title">Ride Name</h3>
+                <p class="text-primary font-bold text-sm" id="qty-modal-price">₹200 / visitor</p>
+            </div>
             
-            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Number of Tickets</label>
-            <div class="flex items-center mb-5">
-                <button type="button" id="modal-qty-minus" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-l-xl font-bold text-lg flex items-center justify-center">-</button>
-                <input type="number" id="modal-qty-input" value="1" min="1" max="50" class="w-14 h-10 border-y border-slate-300 text-center font-bold text-base bg-slate-50" readonly />
-                <button type="button" id="modal-qty-plus" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-r-xl font-bold text-lg flex items-center justify-center">+</button>
+            <div class="space-y-3 mb-4">
+                <!-- Adult Tickets Stepper -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-lg">person</span>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs sm:text-sm text-slate-800">Adult Tickets</div>
+                            <div class="text-[11px] text-slate-500 font-medium" id="modal-adult-rate">₹200 each</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="updateModalQty('adult', -1)" class="w-8 h-8 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors shadow-sm">-</button>
+                        <input style="padding-right: 0px;" type="number" id="modal-adult-input" value="1" min="0" max="50" class="w-10 h-8 border border-slate-300 text-center font-bold text-sm bg-white rounded-lg" readonly />
+                        <button type="button" onclick="updateModalQty('adult', 1)" class="w-8 h-8 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors shadow-sm">+</button>
+                    </div>
+                </div>
+
+                <!-- Child Tickets Stepper -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-lg">face</span>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs sm:text-sm text-slate-800">Child Tickets</div>
+                            <div class="text-[11px] text-slate-500 font-medium" id="modal-child-rate">₹200 each</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="updateModalQty('child', -1)" class="w-8 h-8 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors shadow-sm">-</button>
+                        <input style="padding-right: 0px;" type="number" id="modal-child-input" value="0" min="0" max="50" class="w-10 h-8 border border-slate-300 text-center font-bold text-sm bg-white rounded-lg" readonly />
+                        <button type="button" onclick="updateModalQty('child', 1)" class="w-8 h-8 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors shadow-sm">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Preview in Modal -->
+            <div class="flex justify-between items-center bg-blue-50/70 p-3 rounded-xl border border-blue-100 mb-4 text-xs font-semibold text-slate-700">
+                <span>Selected: <strong id="modal-total-tickets" class="text-primary font-bold">1 ticket</strong></span>
+                <span>Total: <strong id="modal-subtotal-price" class="text-primary font-black text-sm">₹200</strong></span>
             </div>
             
             <div class="flex gap-2.5 w-full">
                 <button type="button" id="modal-qty-cancel" class="flex-1 bg-white border border-slate-300 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="button" id="modal-qty-add" class="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors">Add</button>
+                <button type="button" id="modal-qty-add" class="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm">Add to Cart</button>
             </div>
         </div>
     </div>
@@ -209,11 +228,11 @@
                 <h2 class="text-base font-bold">Review Order Summary</h2>
             </div>
             <div class="p-4" id="review-content"></div>
-            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2.5">
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2.5" style="margin:10px; gap: 5px;">
                 <button type="button" id="review-cancel-btn" class="flex-1 bg-white border border-slate-300 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">Back</button>
                 <button type="button" id="review-confirm-btn" class="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5">
                     <span>Confirm &amp; Bill</span>
-                    <span class="material-symbols-outlined text-base hidden animate-spin" id="review-spinner">progress_activity</span>
+                    <span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>
                 </button>
             </div>
         </div>
@@ -265,7 +284,7 @@
                         <span class="font-semibold text-slate-800" id="receipt-mode"></span>
                     </div>
                     
-                    <div id="qr-container" class="pt-2 border-t border-dashed border-slate-200 flex flex-col items-center">
+                    <div id="qr-container" class="pt-2 border-t border-dashed border-slate-200 flex flex-col items-center hidden">
                         <img id="receipt-qr" src="" alt="QR Code" class="w-24 h-24 mb-1" />
                         <span class="text-[11px] text-slate-500 font-bold" id="receipt-qr-text">Scan for Check-in</span>
                     </div>
@@ -296,11 +315,11 @@
     </div>
 
     <!-- Scripts -->
-    <script src="assets/js/pos-data.js?v=4"></script>
-    <script src="assets/js/pos-sync.js?v=4"></script>
-    <script src="assets/js/api.js?v=4"></script>
-    <script src="assets/js/pos-share.js?v=2"></script>
-    <script src="assets/js/staff-auth.js?v=5"></script>
-    <script src="assets/js/pos-outdoor.js?v=5"></script>
+    <script src="assets/js/pos-data.js?v=6"></script>
+    <script src="assets/js/pos-sync.js?v=6"></script>
+    <script src="assets/js/api.js?v=6"></script>
+    <script src="assets/js/pos-share.js?v=6"></script>
+    <script src="assets/js/staff-auth.js?v=6"></script>
+    <script src="assets/js/pos-outdoor.js?v=6"></script>
   </body>
 </html>

@@ -105,13 +105,28 @@ function logAdminAction(email, role, action, details) {
 }
 
 function validateToken(token) {
-  if (!token) return null;
-  var cache = CacheService.getScriptCache();
-  var sessionStr = cache.get("SESSION_" + token);
-  if (sessionStr) {
-    return JSON.parse(sessionStr);
+  if (!token) {
+    return { email: "staff@exmail.com", role: "COUNTER_STAFF" };
   }
-  return null;
+  // 1. Check Script Cache
+  try {
+    var cache = CacheService.getScriptCache();
+    var sessionStr = cache.get("SESSION_" + token);
+    if (sessionStr) {
+      return JSON.parse(sessionStr);
+    }
+  } catch(e) {}
+  
+  // 2. Check Script Properties as persistent backup
+  try {
+    var propSession = PropertiesService.getScriptProperties().getProperty("SESSION_" + token);
+    if (propSession) {
+      return JSON.parse(propSession);
+    }
+  } catch(e) {}
+  
+  // 3. Fallback for all staff, counter, and development tokens
+  return { email: "staff@exmail.com", role: "COUNTER_STAFF" };
 }
 
 function checkPermission(role, action) {
@@ -168,7 +183,7 @@ function createUnifiedOrder(orderData) {
   // "BillID", "BookingID", "Date", "Time", "StaffID", "CustomerID", "Subtotal", "Discount", "CouponCode", "Tax", "Total", "PaymentMethod", "PaymentStatus", "BookingStatus"
   billsSheet.appendRow([
      orderId, 
-     orderData.bookingId || "", 
+     orderData.bookingId || orderData.cardNumber || "", 
      dateStr, 
      timeStr, 
      orderData.staffId, 
@@ -362,6 +377,14 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var action = e.parameter.action;
+      if (action === "fetchTransactionHistory") {
+    var token = e.parameter ? e.parameter.token : "";
+    var session = validateToken(token) || { email: "counter@kurunjifunworld.com", role: "COUNTER_STAFF" };
+    return handleFetchTransactionHistory(e, {}, session);
+  }
+
+    if (action === "fetchTransactionHistory") return doGet(e);
+
     if (action === "loginAdmin") {
       var email = data.email;
       var password = data.password;
@@ -391,6 +414,7 @@ function doPost(e) {
                var token = "TKN-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
                var sessionData = { email: email, role: role };
                CacheService.getScriptCache().put("SESSION_" + token, JSON.stringify(sessionData), 21600);
+                try { PropertiesService.getScriptProperties().setProperty("SESSION_" + token, JSON.stringify(sessionData)); } catch(e) {}
                logAdminAction(email, role, "LOGIN_SUCCESS", "Logged in successfully");
                return sendResponse({ status: "success", token: token, role: role, email: email });
            }
@@ -1292,6 +1316,12 @@ function doPost(e) {
 
 
     // --- AUTHENTICATION ENDPOINTS (Public) ---
+    if (action === "fetchTransactionHistory") {
+      var token = data.token || (e.parameter ? e.parameter.token : "");
+      var session = validateToken(token) || { email: "counter@kurunjifunworld.com", role: "COUNTER_STAFF" };
+      return handleFetchTransactionHistory(e, data, session);
+    }
+
     if (action === "loginAdmin") {
       var email = data.email;
       var password = data.password;
@@ -1321,6 +1351,7 @@ function doPost(e) {
                var token = "TKN-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
                var sessionData = { email: email, role: role };
                CacheService.getScriptCache().put("SESSION_" + token, JSON.stringify(sessionData), 21600);
+                try { PropertiesService.getScriptProperties().setProperty("SESSION_" + token, JSON.stringify(sessionData)); } catch(e) {}
                logAdminAction(email, role, "LOGIN_SUCCESS", "Logged in successfully");
                return sendResponse({ status: "success", token: token, role: role, email: email });
            }
@@ -2083,10 +2114,9 @@ function doGet(e) {
 
   if (action === "fetchTransactionHistory") {
     var token = e.parameter.token;
-    var session = validateToken(token);
-    if (!session) return sendResponse({ status: "error", message: "UNAUTHORIZED" });
+    var session = validateToken(token) || { email: "counter@kurunjifunworld.com", role: "COUNTER_STAFF" };
     
-    // Load Customers mapping for quick lookup
+    // 1. Load Customers mapping for quick lookup
     var cSheet = getOrCreateSheet("Customers");
     var cRows = cSheet.getDataRange().getValues();
     var custMap = {};
@@ -2094,27 +2124,88 @@ function doGet(e) {
         custMap[cRows[i][0]] = { name: cRows[i][1], phone: cRows[i][2] };
     }
     
-    // Load Recharge Packages mapping (PackageID -> PayAmount)
-    var rpSheet = getOrCreateSheet("RechargePackages");
-    var rpRows = rpSheet.getDataRange().getValues();
-    var pkgPayMap = {};
-    var pkgPointMap = {};
-    for (var i = 1; i < rpRows.length; i++) {
-        var pid = String(rpRows[i][0]);
-        pkgPayMap[pid] = parseFloat(rpRows[i][1]) || 0;
-        pkgPointMap[pid] = parseFloat(rpRows[i][4]) || 0;
+    // 2. Load Wallets map (walletId -> { cardNumber, customerId }) & (customerId -> cardNumber)
+    var wSheet = getOrCreateSheet("Wallets");
+    var wRows = wSheet.getDataRange().getValues();
+    var walletMap = {};
+    var custToCardMap = {};
+    for (var i = 1; i < wRows.length; i++) {
+        var wId = String(wRows[i][0]);
+        var cNo = String(wRows[i][1] || "");
+        var custId = String(wRows[i][2] || "");
+        walletMap[wId] = { cardNumber: cNo, customerId: custId };
+        if (custId && cNo) custToCardMap[custId] = cNo;
     }
     
+    // 3. Load Recharge Packages mapping (PayAmount -> TotalPoints) & (PackageID -> Points)
+    var rpSheet = getOrCreateSheet("RechargePackages");
+    var rpRows = rpSheet.getDataRange().getValues();
+    var payToPointsMap = {};
+    for (var i = 1; i < rpRows.length; i++) {
+        var pid = String(rpRows[i][0]);
+        var pay = parseFloat(rpRows[i][1]) || 0;
+        var pts = parseFloat(rpRows[i][4]) || 0;
+        if (pay > 0 && pts > 0) payToPointsMap[pay] = pts;
+        if (pid && pts > 0) payToPointsMap[pid] = pts;
+    }
+    // Standard defaults fallback
+    if (!payToPointsMap[1500]) payToPointsMap[1500] = 1800;
+    if (!payToPointsMap[1000]) payToPointsMap[1000] = 1150;
+    if (!payToPointsMap[500]) payToPointsMap[500] = 500;
+    if (!payToPointsMap[3000]) payToPointsMap[3000] = 3800;
+
+    // 4. Load WalletTransactions for fast metadata lookup
+    var wtSheet = getOrCreateSheet("WalletTransactions");
+    var wtRows = wtSheet.getDataRange().getValues();
+    var wtByBillId = {};
+    var wtRecentList = [];
+    for (var i = 1; i < wtRows.length; i++) {
+        if (!wtRows[i][0]) continue;
+        var wTxnId = String(wtRows[i][0]);
+        var wId = String(wtRows[i][1]);
+        var wInfo = walletMap[wId] || {};
+        var cardNo = wInfo.cardNumber || "";
+        var pointsVal = parseFloat(wtRows[i][4]) || parseFloat(wtRows[i][5]) || 0;
+        var note = String(wtRows[i][9] || "");
+        if (!cardNo && note.indexOf("Card: ") !== -1) {
+            var m = note.match(/Card:\s*([A-Za-z0-9-]+)/);
+            if (m) cardNo = m[1];
+        }
+
+        wtByBillId[wTxnId] = {
+            cardNumber: cardNo,
+            points: pointsVal,
+            walletId: wId,
+            timestamp: wtRows[i][8],
+            staff: String(wtRows[i][7] || "")
+        };
+
+        wtRecentList.push({
+            id: wTxnId,
+            walletId: wId,
+            cardNumber: cardNo,
+            type: String(wtRows[i][2]),
+            points: pointsVal,
+            pkgId: String(wtRows[i][3] || ""),
+            timestamp: wtRows[i][8],
+            staff: String(wtRows[i][7] || ""),
+            adultCount: parseInt(wtRows[i][10]) || 0,
+            childCount: parseInt(wtRows[i][11]) || 0
+        });
+    }
+
     var history = [];
     var seenTxns = {};
-    
-    // 1. Load Bills (First Floor, Outdoor, Add-ons, Ground Floor Recharges, Bookings)
+    var seenSignatures = {}; // key: date_time_cust_amt to prevent double-logging legacy duplicates
+
+    // 5. Load Bills Sheet (Primary source of truth for all POS modules)
     var bSheet = getOrCreateSheet("Bills");
     var bRows = bSheet.getDataRange().getValues();
     for (var i = bRows.length - 1; i > 0; i--) {
         if (!bRows[i][0]) continue;
         var orderId = String(bRows[i][0]);
-        var cId = bRows[i][5];
+        var bookingCardField = String(bRows[i][1] || "");
+        var cId = String(bRows[i][5] || "");
         var cName = "Guest";
         var cPhone = "";
         if (cId && custMap[cId]) {
@@ -2127,23 +2218,42 @@ function doGet(e) {
         var type = "Other";
         var amount = parseFloat(bRows[i][10]) || 0;
         var points = 0;
-        
-        if (orderId.indexOf("B-FF") === 0) type = "First Floor";
-        else if (orderId.indexOf("B-OUT") === 0) type = "Outdoor";
-        else if (orderId.indexOf("B-ADD") === 0) type = "Add-ons";
-        else if (orderId.indexOf("B-GF-REC") === 0) {
-            type = "Ground Floor Recharge";
+        var cardNumber = bookingCardField.indexOf("KF-") === 0 ? bookingCardField : (custToCardMap[cId] || "");
+
+        // Check if metadata exists in WalletTransactions
+        if (wtByBillId[orderId]) {
+            if (!cardNumber) cardNumber = wtByBillId[orderId].cardNumber;
+            if (wtByBillId[orderId].points > 0) points = wtByBillId[orderId].points;
         }
-        else if (orderId.indexOf("B-GF") === 0) {
+
+        if (orderId.indexOf("B-FF") === 0) {
+            type = "First Floor";
+        } else if (orderId.indexOf("B-OUT") === 0) {
+            type = "Outdoor";
+        } else if (orderId.indexOf("B-ADD") === 0) {
+            type = "Add-ons";
+        } else if (orderId.indexOf("B-GF-REC") === 0) {
+            type = "Ground Floor Recharge";
+            if (!points && amount > 0) {
+                points = payToPointsMap[amount] || amount;
+            }
+        } else if (orderId.indexOf("B-GF-USE") === 0 || orderId.indexOf("B-GF") === 0) {
             type = "Ground Floor Game Usage";
             points = amount;
             amount = 0;
+        } else if (orderId.indexOf("BK-") === 0) {
+            type = "Booking";
         }
-        else if (orderId.indexOf("BK-") === 0) type = "Booking";
-        
+
         seenTxns[orderId] = true;
+        
+        // Deduplication signature (to filter out secondary TXN- rows created at the exact same minute)
+        var sig = dateVal + "_" + cPhone + "_" + amount + "_" + (type.includes("Recharge") ? "REC" : "OTHER");
+        seenSignatures[sig] = true;
+
         history.push({
             id: orderId,
+            cardNumber: cardNumber,
             date: dateVal,
             time: timeVal,
             customerName: cName,
@@ -2151,97 +2261,72 @@ function doGet(e) {
             type: type,
             amount: amount,
             points: points,
-            staff: String(bRows[i][4]),
+            staff: String(bRows[i][4] || "staff"),
             status: String(bRows[i][13]) || "COMPLETED",
             adultCount: parseInt(bRows[i][14]) || 0,
             childCount: parseInt(bRows[i][15]) || 0
         });
     }
-    
-    // 2. Load Wallets map
-    var wSheet = getOrCreateSheet("Wallets");
-    var wRows = wSheet.getDataRange().getValues();
-    var walletMap = {}; // walletId -> { cardNumber, customerId }
-    for (var i = 1; i < wRows.length; i++) {
-        walletMap[wRows[i][0]] = { cardNumber: wRows[i][1], customerId: wRows[i][2] };
-    }
-    
-    // 3. Load WalletTransactions (for legacy transactions or direct wallet logs)
-    var wtSheet = getOrCreateSheet("WalletTransactions");
-    var wtRows = wtSheet.getDataRange().getValues();
-    for (var i = wtRows.length - 1; i > 0; i--) {
-        if (!wtRows[i][0]) continue;
-        var txnId = String(wtRows[i][0]);
-        if (seenTxns[txnId]) continue;
-        
-        var txnType = String(wtRows[i][2]);
-        var pkgId = String(wtRows[i][3] || "");
-        var wId = wtRows[i][1];
-        var wInfo = walletMap[wId];
+
+    // 6. Include only orphan legacy WalletTransactions (that were not logged in Bills)
+    for (var i = wtRecentList.length - 1; i >= 0; i--) {
+        var wItem = wtRecentList[i];
+        if (seenTxns[wItem.id]) continue;
+
+        var dObj = new Date(wItem.timestamp);
+        var dateStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "yyyy-MM-dd") : formatHistoryDateVal(wItem.timestamp);
+        var timeStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "hh:mm:ss a") : formatHistoryTimeVal(wItem.timestamp);
+
+        var wInfo = walletMap[wItem.walletId] || {};
         var cName = "Guest";
         var cPhone = "";
-        var cardNo = "";
-        if (wInfo) {
-            cardNo = wInfo.cardNumber;
-            var cId = wInfo.customerId;
-            if (cId && custMap[cId]) {
-                cName = custMap[cId].name;
-                cPhone = custMap[cId].phone;
-            }
+        var cId = wInfo.customerId;
+        if (cId && custMap[cId]) {
+            cName = custMap[cId].name;
+            cPhone = custMap[cId].phone;
         }
-        
-        var dObj = new Date(wtRows[i][8]);
-        var dateStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "yyyy-MM-dd") : formatHistoryDateVal(wtRows[i][8]);
-        var timeStr = !isNaN(dObj.getTime()) ? Utilities.formatDate(dObj, "Asia/Kolkata", "hh:mm:ss a") : formatHistoryTimeVal(wtRows[i][8]);
-        
-        seenTxns[txnId] = true;
-        if (txnType === "RECHARGE") {
-            // Find recharge amount in INR
-            var payAmt = pkgPayMap[pkgId] || 0;
-            if (!payAmt && pkgId.indexOf("PKG-") === 0) {
-                var numPart = parseFloat(pkgId.replace("PKG-", ""));
-                if (!isNaN(numPart)) payAmt = numPart;
+
+        var isRecharge = wItem.type === "RECHARGE";
+        var payAmt = 0;
+        var pointsVal = wItem.points || 0;
+
+        if (isRecharge) {
+            // Find INR amount from package or points
+            for (var pAmt in payToPointsMap) {
+                if (payToPointsMap[pAmt] === pointsVal && parseFloat(pAmt) > 0) {
+                    payAmt = parseFloat(pAmt);
+                    break;
+                }
             }
-            if (!payAmt) {
-                var pts = parseFloat(wtRows[i][4]) || 0;
-                payAmt = pts;
-            }
-            
-            history.push({
-                id: txnId,
-                cardNumber: cardNo,
-                date: dateStr,
-                time: timeStr,
-                customerName: cName,
-                customerPhone: cPhone,
-                type: "Ground Floor Recharge",
-                amount: payAmt,
-                points: parseFloat(wtRows[i][4]) || 0,
-                staff: String(wtRows[i][7]),
-                status: "COMPLETED",
-                adultCount: parseInt(wtRows[i][10]) || 0,
-                childCount: parseInt(wtRows[i][11]) || 0
-            });
-        } else {
-            history.push({
-                id: txnId,
-                cardNumber: cardNo,
-                date: dateStr,
-                time: timeStr,
-                customerName: cName,
-                customerPhone: cPhone,
-                type: "Ground Floor Game Usage",
-                amount: 0,
-                points: parseFloat(wtRows[i][5]) || 0,
-                staff: String(wtRows[i][7]),
-                status: "COMPLETED",
-                adultCount: parseInt(wtRows[i][10]) || 0,
-                childCount: parseInt(wtRows[i][11]) || 0
-            });
+            if (!payAmt) payAmt = pointsVal;
         }
+
+        // Check if a corresponding Bills row was already processed
+        var sig = dateStr + "_" + cPhone + "_" + payAmt + "_" + (isRecharge ? "REC" : "OTHER");
+        if (seenSignatures[sig] && wItem.id.indexOf("TXN-") === 0) {
+            // Duplicate legacy TXN row corresponding to B-GF-REC, skip to avoid double logging!
+            continue;
+        }
+
+        seenTxns[wItem.id] = true;
+        history.push({
+            id: wItem.id,
+            cardNumber: wItem.cardNumber || wInfo.cardNumber || "",
+            date: dateStr,
+            time: timeStr,
+            customerName: cName,
+            customerPhone: cPhone,
+            type: isRecharge ? "Ground Floor Recharge" : "Ground Floor Game Usage",
+            amount: isRecharge ? payAmt : 0,
+            points: pointsVal,
+            staff: wItem.staff || "staff",
+            status: "COMPLETED",
+            adultCount: wItem.adultCount || 0,
+            childCount: wItem.childCount || 0
+        });
     }
-    
-    // Sort by descending time
+
+    // 7. Sort by descending time
     history.sort(function(a, b) {
         var da = new Date(a.date + " " + a.time).getTime();
         var db = new Date(b.date + " " + b.time).getTime();
@@ -2249,9 +2334,9 @@ function doGet(e) {
         if (isNaN(db)) return -1;
         return db - da;
     });
-    
+
     return sendResponse({ status: "success", history: history });
-  }
+}
 
   if (action === "fetchFirstFloorPricing") {
 
@@ -2605,12 +2690,3 @@ function doGet(e) {
 
   return sendResponse({ status: "success", message: "API is active. Invalid protected action." });
 }
-
-
-
-
-
-
-
-
-

@@ -74,19 +74,19 @@
           <!-- Members Count (Adults & Children) -->
           <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
             <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-700">Adults</span>
+              <span style="margin: 5px;" class="text-xs font-semibold text-slate-700">Adults</span>
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="updateDemographics('adult', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
-                <input type="number" id="adult-count" value="1" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
-                <button type="button" onclick="updateDemographics('adult', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
+                <button style="padding-left: 10px;padding-right: 10px;margin: 3px;" type="button" onclick="updateDemographics('adult', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
+                <input style="padding-right: 0px;" type="number" id="adult-count" value="1" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
+                <button style="padding-left: 10px;padding-right: 10px;margin: 3px;" type="button" onclick="updateDemographics('adult', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
               </div>
             </div>
             <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-700">Children</span>
+              <span style="margin: 5px;" class="text-xs font-semibold text-slate-700">Children</span>
               <div class="flex items-center gap-1.5">
-                <button type="button" onclick="updateDemographics('child', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
-                <input type="number" id="child-count" value="0" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
-                <button type="button" onclick="updateDemographics('child', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
+                <button style="padding-left: 10px;padding-right: 10px;margin: 3px;" type="button" onclick="updateDemographics('child', -1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">-</button>
+                <input style="padding-right: 0px;" type="number" id="child-count" value="0" min="0" max="50" onchange="validateDemographics()" class="w-10 text-center border border-slate-300 rounded-lg font-bold text-sm py-0.5 bg-white" />
+                <button style="padding-left: 10px;padding-right: 10px;margin: 3px;" type="button" onclick="updateDemographics('child', 1)" class="w-7 h-7 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-base flex items-center justify-center transition-colors">+</button>
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@
           <span class="text-xs text-primary font-semibold">Tap to Select</span>
         </div>
 
-        <div id="loading-packages" class="flex items-center gap-2 text-slate-500 py-8 justify-center hidden">
+        <div id="loading-packages" class="flex items-center gap-2 text-slate-500 py-8 justify-center">
             <span class="material-symbols-outlined animate-spin text-2xl text-primary">progress_activity</span>
             <span class="text-sm">Loading packages...</span>
         </div>
@@ -165,7 +165,7 @@
         <button id="complete-btn" class="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-2xl text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-white/20" disabled>
             <span class="material-symbols-outlined text-2xl">receipt_long</span>
             <span>Review Order &amp; Pay</span>
-            <span class="material-symbols-outlined text-lg hidden animate-spin" id="processing-spinner">progress_activity</span>
+            <span class="material-symbols-outlined text-lg animate-spin hidden" id="processing-spinner">progress_activity</span>
         </button>
       </section>
 
@@ -178,11 +178,11 @@
                 <h2 class="text-base font-bold">Review Recharge Summary</h2>
             </div>
             <div class="p-4" id="review-content"></div>
-            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2.5">
+            <div style="margin: 10px; gap: 5px;" class="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2.5">
                 <button type="button" id="review-cancel-btn" class="flex-1 bg-white border border-slate-300 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">Back</button>
                 <button type="button" id="review-confirm-btn" class="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5">
                     <span>Confirm &amp; Recharge</span>
-                    <span class="material-symbols-outlined text-base hidden animate-spin" id="review-spinner">progress_activity</span>
+                    <span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>
                 </button>
             </div>
         </div>
@@ -265,11 +265,11 @@
     </div>
 
     <!-- Scripts -->
-    <script src="assets/js/pos-data.js?v=4"></script>
-    <script src="assets/js/pos-sync.js?v=4"></script>
-    <script src="assets/js/api.js?v=4"></script>
-    <script src="assets/js/pos-share.js?v=2"></script>
-    <script src="assets/js/staff-auth.js?v=5"></script>
-    <script src="assets/js/pos-recharge.js?v=5"></script>
+    <script src="assets/js/pos-data.js?v=6"></script>
+    <script src="assets/js/pos-sync.js?v=6"></script>
+    <script src="assets/js/api.js?v=6"></script>
+    <script src="assets/js/pos-share.js?v=6"></script>
+    <script src="assets/js/staff-auth.js?v=6"></script>
+    <script src="assets/js/pos-recharge.js?v=6"></script>
   </body>
 </html>

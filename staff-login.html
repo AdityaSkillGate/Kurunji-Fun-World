@@ -8,55 +8,66 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     
     <!-- Material Symbols -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     
     <!-- Tailwind CSS -->
     <link rel="stylesheet" href="assets/css/tailwind.css" />
-    
     <link href="assets/css/pos.css" rel="stylesheet" />
   </head>
-  <body class="bg-surface font-body h-screen flex items-center justify-center">
+  <body class="bg-slate-900 font-body min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950">
     
-    <!-- Login Modal/Card -->
-    <div class="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-md p-8">
-      <div class="text-center mb-8">
-        <img src="assets/images/logo.jpg" alt="Kurunji Logo" class="h-16 w-auto mx-auto mb-4 rounded" />
-        <h1 class="text-2xl font-bold text-slate-800">Staff Billing System</h1>
-        <p class="text-slate-500 text-sm mt-1">Kurunji Fun World</p>
+    <!-- Login Card -->
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100/20 w-full max-w-md p-6 sm:p-8 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Top Decorative Accent -->
+      <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-indigo-500 to-cyan-400"></div>
+
+      <div class="text-center mb-6 pt-2">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 shadow-sm mb-3">
+          <span class="material-symbols-outlined text-primary text-3xl">point_of_sale</span>
+        </div>
+        <h1 class="text-2xl font-black text-slate-800 tracking-tight">Staff Billing POS</h1>
+        <p class="text-slate-500 text-xs sm:text-sm mt-1 font-medium">Kurunji Fun World • Kodaikanal</p>
       </div>
       
-      <form id="staff-login-form" class="space-y-5">
-        <div id="login-error" class="hidden bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2">
-          <span class="material-symbols-outlined text-sm">error</span>
+      <form id="staff-login-form" class="space-y-4">
+        <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm p-3 rounded-xl flex items-center gap-2">
+          <span class="material-symbols-outlined text-base shrink-0">error</span>
           <span id="login-error-text">Invalid credentials.</span>
         </div>
         
         <div>
-          <label class="block text-sm font-semibold text-slate-700 mb-1" for="email">Staff Email / Username</label>
-          <input type="email" id="email" class="w-full px-4 py-3 rounded-lg border-slate-300 focus:border-primary focus:ring-primary text-slate-900 bg-slate-50 focus:bg-white transition-colors" placeholder="counter@kurunjifunworld.com" required />
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" for="email">Staff Email / ID</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">badge</span>
+            <input type="email" id="email" value="staff@exmail.com" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-900 bg-slate-50 focus:bg-white text-sm font-medium transition-all" placeholder="staff@exmail.com" required />
+          </div>
         </div>
         
         <div>
-          <label class="block text-sm font-semibold text-slate-700 mb-1" for="password">Password</label>
-          <input type="password" id="password" class="w-full px-4 py-3 rounded-lg border-slate-300 focus:border-primary focus:ring-primary text-slate-900 bg-slate-50 focus:bg-white transition-colors" placeholder="••••••••" required />
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" for="password">Password</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">lock</span>
+            <input type="password" id="password" value="Admin@2026" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-900 bg-slate-50 focus:bg-white text-sm font-medium transition-all" placeholder="••••••••" required />
+          </div>
         </div>
         
-        <button type="submit" id="login-btn" class="w-full py-3 px-4 bg-primary hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex justify-center items-center gap-2">
+        <button type="submit" id="login-btn" class="w-full py-3.5 px-4 bg-primary hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex justify-center items-center gap-2 text-sm sm:text-base mt-2">
           <span>Login to Billing</span>
-          <span class="material-symbols-outlined text-sm hidden" id="login-spinner">progress_activity</span>
+          <span class="material-symbols-outlined text-base hidden animate-spin" id="login-spinner">progress_activity</span>
         </button>
+
+        <div class="pt-3 border-t border-slate-100 text-center">
+          <p class="text-[11px] text-slate-400 font-medium">Default staff: <strong class="text-slate-600">staff@exmail.com</strong> | <strong class="text-slate-600">Admin@2026</strong></p>
+        </div>
       </form>
     </div>
 
     <!-- Scripts -->
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/staff-auth.js"></script>
+    <script src="assets/js/api.js?v=6"></script>
+    <script src="assets/js/staff-auth.js?v=6"></script>
   </body>
 </html>
-
-
-
-
