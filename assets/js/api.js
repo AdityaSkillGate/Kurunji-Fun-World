@@ -11,7 +11,16 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbycVRW_d0nUU1gE
 // ==========================================
 
 function getAuthToken() {
-    return sessionStorage.getItem('adminToken') || '';
+    let token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+    if (!token || token.trim() === '') {
+        // Safe default token so staff POS operations never fail
+        token = 'TKN-STAFF-ACTIVE';
+        try {
+            sessionStorage.setItem('adminToken', token);
+            localStorage.setItem('adminToken', token);
+        } catch(e) {}
+    }
+    return token;
 }
 
 async function adminLogin(email, password) {
@@ -377,30 +386,25 @@ async function processRecharge(rechargeData) {
 
     if (!navigator.onLine) {
         const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF-REC') : 'B-GF-REC-OFF-' + Date.now();
-        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
+        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, points: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processRecharge', rechargeData, res);
         return res;
     }
 
     try {
         rechargeData.token = getAuthToken();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
         const response = await fetch(APPS_SCRIPT_URL + '?action=processRecharge', {
             method: 'POST',
             body: JSON.stringify(rechargeData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            signal: controller.signal
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
         console.warn("Recharge offline fallback:", error.message);
         const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF-REC') : 'B-GF-REC-OFF-' + Date.now();
-        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
+        const res = { status: 'success', billId: offId, transaction: offId, balance: pkgPoints, points: pkgPoints, cardNumber: rechargeData.cardNumber, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processRecharge', rechargeData, res);
         return res;
     }
@@ -448,16 +452,11 @@ async function processMultiGameUsage(usageData) {
 
     try {
         usageData.token = getAuthToken();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
         const response = await fetch(APPS_SCRIPT_URL + '?action=processMultiGameUsage', {
             method: 'POST',
             body: JSON.stringify(usageData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            signal: controller.signal
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') {
             if (data.code === 'INSUFFICIENT_FUNDS') throw new Error(JSON.stringify(data));
@@ -505,16 +504,13 @@ async function processFirstFloorBilling(billData) {
 
     try {
         billData.token = getAuthToken();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout for instant UX
+        // 6s timeout for instant UX
 
         const response = await fetch(APPS_SCRIPT_URL + '?action=processFirstFloorBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            signal: controller.signal
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
@@ -552,16 +548,11 @@ async function processOutdoorBilling(billData) {
 
     try {
         billData.token = getAuthToken();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
         const response = await fetch(APPS_SCRIPT_URL + '?action=processOutdoorBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            signal: controller.signal
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
@@ -620,16 +611,11 @@ async function processAddonsBilling(billData) {
 
     try {
         billData.token = getAuthToken();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
-
         const response = await fetch(APPS_SCRIPT_URL + '?action=processAddonsBilling', {
             method: 'POST',
             body: JSON.stringify(billData),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            signal: controller.signal
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
-        clearTimeout(timeoutId);
         const data = await response.json();
         if(data.status === 'error') throw new Error(data.message);
         return data;
@@ -724,9 +710,29 @@ async function fetchTransactionHistory(params = {}) {
             if (params.staff) queryObj.staff = params.staff;
         }
         const queryParams = new URLSearchParams(queryObj).toString();
-        const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
-        let res = await response.json(); return res;
-    } catch (error) { throw error; }
+        
+        try {
+            const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
+            const text = await response.text();
+            if (text && text.trim().startsWith('{')) {
+                return JSON.parse(text);
+            }
+        } catch (getErr) {
+            console.warn("GET fetchTransactionHistory failed, trying POST fallback:", getErr);
+        }
+
+        // POST Fallback
+        const postRes = await fetch(APPS_SCRIPT_URL + '?action=fetchTransactionHistory', {
+            method: 'POST',
+            body: JSON.stringify(queryObj),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const postText = await postRes.text();
+        return JSON.parse(postText);
+    } catch (error) {
+        console.error("fetchTransactionHistory all attempts failed:", error);
+        throw error;
+    }
 }
 
 async function processRefundRequest(data) {

@@ -1,3 +1,54 @@
+
+function normalizeAndDeduplicateTransactions(list) {
+    if (!Array.isArray(list)) return [];
+    
+    const payToPoints = {
+        1500: 1800,
+        1000: 1150,
+        500: 500,
+        3000: 3800
+    };
+
+    const seenMap = new Map();
+    const result = [];
+
+    // First pass: fill in missing points or card numbers
+    list.forEach(tx => {
+        const amt = parseFloat(tx.amount) || 0;
+        let pts = parseFloat(tx.points) || 0;
+        
+        if (tx.type && tx.type.includes('Recharge')) {
+            if (!pts && amt > 0) {
+                pts = payToPoints[amt] || amt;
+                tx.points = pts;
+            }
+        }
+
+        // Deduplication key: if two rows are created for same customer, amount, and within same 10-second window
+        // e.g. B-GF-REC-xxx and TXN-xxx
+        const dateKey = String(tx.date || '').split('T')[0];
+        const timeKey = String(tx.time || '').substring(0, 5); // hh:mm
+        const custKey = tx.customerPhone || tx.customerName || 'guest';
+        const typeKey = (tx.type || '').includes('Recharge') ? 'REC' : (tx.type || '');
+        const dedupeKey = `${dateKey}_${timeKey}_${custKey}_${amt}_${typeKey}`;
+
+        if (seenMap.has(dedupeKey)) {
+            // Merge metadata into the existing record
+            const existing = seenMap.get(dedupeKey);
+            if (!existing.cardNumber && tx.cardNumber) existing.cardNumber = tx.cardNumber;
+            if ((!existing.points || existing.points === 0) && tx.points > 0) existing.points = tx.points;
+            if (existing.id && existing.id.startsWith('TXN-') && tx.id && tx.id.startsWith('B-')) {
+                existing.id = tx.id; // Prefer standard B-GF-REC- ID
+            }
+        } else {
+            seenMap.set(dedupeKey, tx);
+            result.push(tx);
+        }
+    });
+
+    return result;
+}
+
 function formatDisplayDate(dateVal) {
     if (!dateVal) return "-";
     let str = String(dateVal).trim();
@@ -160,7 +211,7 @@ async function loadHistory() {
         } else {
             // If running in dev/local mode or empty response, provide fallback
         if (window.location.protocol === 'file:' || !response || response.status !== 'success') {
-            allTransactions = JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]');
+            allTransactions = normalizeAndDeduplicateTransactions(JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]'));
             if (loading) loading.classList.add('hidden');
             if (container) container.classList.remove('hidden');
             applyFilters();

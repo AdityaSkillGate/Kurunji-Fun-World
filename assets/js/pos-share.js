@@ -1,10 +1,11 @@
 /**
  * assets/js/pos-share.js
- * Comprehensive POS Receipt Sharing, Thermal Printing, and Owner WhatsApp Reporting
+ * Comprehensive POS Receipt Sharing, Thermal Printing, Canvas QR Image Export, and Owner WhatsApp Reporting
  * Kurunji Fun World Staff POS
  */
 
 const OWNER_WHATSAPP_NUMBER = "919751182000"; // +91 97511 82000
+const PARK_LOCATION_ADDRESS = "Kurunji Fun World, 5/1, Moonjikkal, Kodaikanal-624101";
 
 const POSShare = {
     currentSelectedPeriod: 'today',
@@ -18,7 +19,7 @@ const POSShare = {
     },
 
     /**
-     * Extracts active receipt data from the DOM
+     * Extracts active receipt data from the DOM across any POS module
      */
     getActiveReceiptData() {
         const dateEl = document.getElementById('receipt-date');
@@ -30,8 +31,30 @@ const POSShare = {
         const balEl = document.getElementById('receipt-balance');
         const custNameEl = document.getElementById('cust-name');
         const custPhoneEl = document.getElementById('cust-phone');
-        const adultEl = document.getElementById('adult-count');
-        const childEl = document.getElementById('child-count');
+        
+        // Demographic resolution
+        let adultCount = 0;
+        let childCount = 0;
+
+        const adultEl = document.getElementById('adult-count') || document.getElementById('adult-qty') || document.getElementById('summary-adult-qty');
+        const childEl = document.getElementById('child-count') || document.getElementById('child-qty') || document.getElementById('summary-child-qty');
+        
+        if (adultEl) adultCount = parseInt(adultEl.value || adultEl.textContent) || 0;
+        if (childEl) childCount = parseInt(childEl.value || childEl.textContent) || 0;
+
+        // If in Outdoor cart mode
+        if (typeof cart !== 'undefined' && Array.isArray(cart) && cart.length > 0) {
+            let cAdults = 0;
+            let cChildren = 0;
+            cart.forEach(item => {
+                cAdults += (item.adultQty || 0);
+                cChildren += (item.childQty || 0);
+            });
+            if (cAdults > 0 || cChildren > 0) {
+                adultCount = cAdults;
+                childCount = cChildren;
+            }
+        }
 
         // Extract items
         const items = [];
@@ -39,7 +62,9 @@ const POSShare = {
         if (itemsContainer) {
             itemsContainer.querySelectorAll('div').forEach(row => {
                 const text = row.innerText.trim();
-                if (text) items.push(text.replace(/\s+/g, ' '));
+                if (text && !text.includes('Total Visitors')) {
+                    items.push(text.replace(/\s+/g, ' '));
+                }
             });
         }
 
@@ -53,6 +78,8 @@ const POSShare = {
             items.push(adultRow.innerText.trim().replace(/\s+/g, ' '));
         }
 
+        const staffEmail = sessionStorage.getItem('adminEmail') || (typeof currentSession !== 'undefined' && currentSession ? currentSession.email : 'staff');
+
         return {
             date: dateEl ? dateEl.textContent.trim() : new Date().toLocaleString('en-IN'),
             billId: billEl ? billEl.textContent.trim() : 'B-' + Date.now(),
@@ -63,14 +90,15 @@ const POSShare = {
             balance: balEl ? balEl.textContent.trim() : '',
             customerName: custNameEl && custNameEl.value.trim() ? custNameEl.value.trim() : 'Walk-in Guest',
             customerPhone: custPhoneEl && custPhoneEl.value.trim() ? custPhoneEl.value.trim().replace(/[^0-9]/g, '') : '',
-            adultCount: adultEl ? parseInt(adultEl.value) || 0 : 0,
-            childCount: childEl ? parseInt(childEl.value) || 0 : 0,
+            adultCount: adultCount,
+            childCount: childCount,
+            staff: staffEmail,
             items: items
         };
     },
 
     /**
-     * Formats Single Bill as a clean WhatsApp Text Receipt
+     * Formats Single Bill as a clean WhatsApp Text Receipt for CUSTOMER
      */
     formatBillAsText(billData) {
         const d = billData || this.getActiveReceiptData();
@@ -101,7 +129,7 @@ const POSShare = {
         msg += `💳 *Payment Method:* ${d.mode}\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
         msg += `🌟 *Thank you for visiting Kurunji Fun World!*\n`;
-        msg += `📍 *Location:* Salem - Namakkal Highway, Kurunji Fun World\n`;
+        msg += `📍 *Location:* ${PARK_LOCATION_ADDRESS}\n`;
         msg += `📞 *Helpdesk:* +91 97511 82000\n`;
         msg += `_Valid only for date of issue._`;
 
@@ -109,7 +137,45 @@ const POSShare = {
     },
 
     /**
-     * Generates a Canvas Snapshot of the Receipt for Image Sharing/Download
+     * Formats Single Bill as an Executive Record for the OWNER (+91 97511 82000)
+     */
+    formatBillForOwner(billData) {
+        const d = billData || this.getActiveReceiptData();
+        
+        let msg = `📊 *KURUNJI FUN WORLD — NEW BILL NOTIFICATION*\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `🧾 *Bill No:* ${d.billId}\n`;
+        msg += `📅 *Date & Time:* ${d.date}\n`;
+        msg += `👤 *Customer:* ${d.customerName}\n`;
+        if (d.customerPhone) msg += `📱 *Mobile:* +91 ${d.customerPhone}\n`;
+        if (d.card) msg += `💳 *Card No:* ${d.card}\n`;
+        if (d.adultCount > 0 || d.childCount > 0) {
+            msg += `👥 *Visitors:* ${d.adultCount} Adult(s), ${d.childCount} Child(ren)\n`;
+        }
+        msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+
+        if (d.items && d.items.length > 0) {
+            msg += `🎡 *PARTICULARS:*\n`;
+            d.items.forEach(item => {
+                msg += `• ${item}\n`;
+            });
+            msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        }
+
+        if (d.addedPoints) msg += `● *Points Added:* ${d.addedPoints}\n`;
+        if (d.balance) msg += `💰 *Card Balance:* ${d.balance}\n`;
+        msg += `💵 *TOTAL COLLECTED:* *${d.total}*\n`;
+        msg += `💳 *Payment Mode:* ${d.mode}\n`;
+        msg += `👤 *Billed By:* ${d.staff ? d.staff.split('@')[0] : 'Staff'}\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `📍 *Location:* ${PARK_LOCATION_ADDRESS}\n`;
+        msg += `_Official Staff POS Billing Record_`;
+
+        return msg;
+    },
+
+    /**
+     * Generates a Canvas Snapshot of the Receipt with Embedded QR Code
      */
     async generateReceiptCanvas(billData) {
         const d = billData || this.getActiveReceiptData();
@@ -117,9 +183,9 @@ const POSShare = {
         const ctx = canvas.getContext('2d');
 
         const width = 420;
-        let estimatedHeight = 440 + (Math.max(1, d.items.length) * 28);
-        if (d.card) estimatedHeight += 35;
-        if (d.balance) estimatedHeight += 25;
+        let estimatedHeight = 540 + (Math.max(1, d.items.length) * 26);
+        if (d.card) estimatedHeight += 30;
+        if (d.balance) estimatedHeight += 24;
         
         canvas.width = width * 2;
         canvas.height = estimatedHeight * 2;
@@ -131,23 +197,23 @@ const POSShare = {
 
         // Top Header Banner
         ctx.fillStyle = "#0f172a";
-        ctx.fillRect(0, 0, width, 80);
+        ctx.fillRect(0, 0, width, 76);
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 18px sans-serif";
+        ctx.font = "bold 17px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("KURUNJI FUN WORLD", width / 2, 32);
+        ctx.fillText("KURUNJI FUN WORLD", width / 2, 28);
 
         ctx.fillStyle = "#38bdf8";
         ctx.font = "bold 11px sans-serif";
-        ctx.fillText("OFFICIAL BILL RECEIPT", width / 2, 52);
+        ctx.fillText("OFFICIAL BILL RECEIPT", width / 2, 47);
 
         ctx.fillStyle = "#94a3b8";
-        ctx.font = "10px sans-serif";
-        ctx.fillText("Theme Park & Family Entertainment Zone", width / 2, 68);
+        ctx.font = "9.5px sans-serif";
+        ctx.fillText("Theme Park & Family Entertainment Zone", width / 2, 63);
 
         // Divider
-        let y = 98;
+        let y = 92;
         ctx.strokeStyle = "#e2e8f0";
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
@@ -158,7 +224,7 @@ const POSShare = {
         ctx.setLineDash([]);
 
         // Meta Info
-        y += 22;
+        y += 20;
         ctx.textAlign = "left";
         ctx.font = "11px sans-serif";
         ctx.fillStyle = "#64748b";
@@ -168,7 +234,7 @@ const POSShare = {
         ctx.font = "bold 11px sans-serif";
         ctx.fillText(d.date, width - 24, y);
 
-        y += 20;
+        y += 19;
         ctx.textAlign = "left";
         ctx.font = "11px sans-serif";
         ctx.fillStyle = "#64748b";
@@ -178,7 +244,7 @@ const POSShare = {
         ctx.font = "bold 11px monospace";
         ctx.fillText(d.billId, width - 24, y);
 
-        y += 20;
+        y += 19;
         ctx.textAlign = "left";
         ctx.font = "11px sans-serif";
         ctx.fillStyle = "#64748b";
@@ -188,8 +254,19 @@ const POSShare = {
         ctx.font = "bold 11px sans-serif";
         ctx.fillText(d.customerName + (d.customerPhone ? ` (${d.customerPhone})` : ''), width - 24, y);
 
+        if (d.adultCount > 0 || d.childCount > 0) {
+            y += 19;
+            ctx.textAlign = "left";
+            ctx.fillStyle = "#64748b";
+            ctx.fillText("Visitors:", 24, y);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#1e293b";
+            ctx.font = "bold 11px sans-serif";
+            ctx.fillText(`${d.adultCount} Adult(s), ${d.childCount} Child(ren)`, width - 24, y);
+        }
+
         if (d.card) {
-            y += 20;
+            y += 19;
             ctx.textAlign = "left";
             ctx.fillStyle = "#64748b";
             ctx.fillText("Card Number:", 24, y);
@@ -200,20 +277,20 @@ const POSShare = {
         }
 
         // Items Section
-        y += 16;
+        y += 14;
         ctx.strokeStyle = "#cbd5e1";
         ctx.beginPath();
         ctx.moveTo(20, y);
         ctx.lineTo(width - 20, y);
         ctx.stroke();
 
-        y += 18;
+        y += 17;
         ctx.textAlign = "left";
         ctx.fillStyle = "#475569";
         ctx.font = "bold 11px sans-serif";
         ctx.fillText("PARTICULARS", 24, y);
 
-        y += 8;
+        y += 7;
         ctx.strokeStyle = "#e2e8f0";
         ctx.beginPath();
         ctx.moveTo(20, y);
@@ -222,14 +299,14 @@ const POSShare = {
 
         if (d.items && d.items.length > 0) {
             d.items.forEach(item => {
-                y += 22;
+                y += 20;
                 ctx.textAlign = "left";
                 ctx.fillStyle = "#1e293b";
                 ctx.font = "11px sans-serif";
                 ctx.fillText(item, 24, y, width - 48);
             });
         } else {
-            y += 22;
+            y += 20;
             ctx.textAlign = "left";
             ctx.fillStyle = "#1e293b";
             ctx.font = "11px sans-serif";
@@ -237,7 +314,7 @@ const POSShare = {
         }
 
         // Totals
-        y += 20;
+        y += 18;
         ctx.strokeStyle = "#0f172a";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -245,17 +322,17 @@ const POSShare = {
         ctx.lineTo(width - 20, y);
         ctx.stroke();
 
-        y += 24;
+        y += 22;
         ctx.textAlign = "left";
-        ctx.font = "bold 14px sans-serif";
+        ctx.font = "bold 13px sans-serif";
         ctx.fillStyle = "#0f172a";
         ctx.fillText("TOTAL PAID:", 24, y);
         ctx.textAlign = "right";
-        ctx.font = "bold 17px sans-serif";
+        ctx.font = "bold 16px sans-serif";
         ctx.fillStyle = "#2563eb";
         ctx.fillText(d.total, width - 24, y);
 
-        y += 18;
+        y += 17;
         ctx.textAlign = "left";
         ctx.font = "11px sans-serif";
         ctx.fillStyle = "#64748b";
@@ -268,14 +345,62 @@ const POSShare = {
             ctx.fillText("Balance: " + d.balance, width - 24, y);
         }
 
+        // QR Code Drawing
+        y += 18;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(20, y);
+        ctx.lineTo(width - 20, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        y += 14;
+        try {
+            // Load QR Code Image
+            const qrImg = new Image();
+            qrImg.crossOrigin = "anonymous";
+            
+            // Check if there's already an active QR image on page
+            const domQr = document.getElementById('receipt-qr');
+            if (domQr && domQr.src && domQr.src.startsWith('data:image')) {
+                qrImg.src = domQr.src;
+            } else {
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(d.billId)}`;
+            }
+
+            await new Promise((resolve) => {
+                qrImg.onload = resolve;
+                qrImg.onerror = resolve; // Graceful fallback
+                setTimeout(resolve, 1500); // 1.5s timeout safety
+            });
+
+            if (qrImg.complete && qrImg.naturalWidth > 0) {
+                const qrSize = 90;
+                ctx.drawImage(qrImg, (width - qrSize) / 2, y, qrSize, qrSize);
+                y += qrSize + 10;
+                ctx.fillStyle = "#64748b";
+                ctx.font = "bold 9px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("SCAN QR FOR CHECK-IN / VERIFICATION", width / 2, y);
+                y += 14;
+            }
+        } catch (e) {
+            console.warn("QR code canvas render fallback:", e);
+        }
+
         // Footer
-        y += 28;
+        y += 10;
         ctx.textAlign = "center";
-        ctx.font = "italic 10px sans-serif";
+        ctx.font = "italic 9.5px sans-serif";
         ctx.fillStyle = "#94a3b8";
         ctx.fillText("Thank you for visiting Kurunji Fun World!", width / 2, y);
-        y += 15;
-        ctx.fillText("Support: +91 97511 82000 | Salem - Namakkal Highway", width / 2, y);
+        y += 14;
+        ctx.font = "9px sans-serif";
+        ctx.fillText(PARK_LOCATION_ADDRESS, width / 2, y);
+        y += 13;
+        ctx.fillText("Support & Helpdesk: +91 97511 82000", width / 2, y);
 
         return canvas;
     },
@@ -334,12 +459,12 @@ const POSShare = {
                     <div class="space-y-2 pt-1">
                         <button type="button" id="share-text-wa-btn" style="background-color: #059669; color: #ffffff;" class="w-full hover:bg-emerald-700 font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow transition-colors">
                             <span class="material-symbols-outlined text-lg">chat</span>
-                            <span>Share Formatted Text Bill</span>
+                            <span>Share Formatted Text Bill (Customer)</span>
                         </button>
                         
                         <button type="button" id="share-img-wa-btn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 border border-slate-300 transition-colors">
                             <span class="material-symbols-outlined text-lg text-emerald-600">image</span>
-                            <span>Download &amp; Share Image Bill</span>
+                            <span>Download &amp; Share Image Bill (with QR)</span>
                         </button>
 
                         <button type="button" id="share-owner-wa-btn" style="background-color: #fef3c7; color: #78350f; border: 1px solid #fcd34d;" class="w-full hover:bg-amber-100 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
@@ -354,6 +479,7 @@ const POSShare = {
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // 1. Share Formatted Text Bill to Customer
         document.getElementById('share-text-wa-btn').onclick = () => {
             const rawPhone = document.getElementById('share-phone-input').value.trim().replace(/[^0-9]/g, '');
             const targetPhone = rawPhone.length === 10 ? '91' + rawPhone : (rawPhone || '');
@@ -362,17 +488,19 @@ const POSShare = {
             document.getElementById('bill-share-dialog').remove();
         };
 
+        // 2. Download Image Bill (with QR Code) & open WhatsApp
         document.getElementById('share-img-wa-btn').onclick = async () => {
             await POSShare.downloadReceiptImage(d);
             const rawPhone = document.getElementById('share-phone-input').value.trim().replace(/[^0-9]/g, '');
             const targetPhone = rawPhone.length === 10 ? '91' + rawPhone : (rawPhone || '');
-            const text = `🎟️ *Kurunji Fun World Receipt: ${d.billId} (${d.total})*\nAttached receipt image.`;
+            const text = `🎟️ *Kurunji Fun World Official Receipt: ${d.billId} (${d.total})*\nAttached receipt image with QR entry code.`;
             POSShare.sendWhatsApp(targetPhone, text);
             document.getElementById('bill-share-dialog').remove();
         };
 
+        // 3. Send Notification to Owner
         document.getElementById('share-owner-wa-btn').onclick = () => {
-            const text = POSShare.formatBillAsText(d);
+            const text = POSShare.formatBillForOwner(d);
             POSShare.sendWhatsApp(OWNER_WHATSAPP_NUMBER, text);
             document.getElementById('bill-share-dialog').remove();
         };
@@ -603,6 +731,7 @@ const POSShare = {
         msg += `⭐ *TOTAL REVENUE: ₹${s.totalRevenue.toLocaleString('en-IN')}*\n`;
         msg += `🧾 *Total Transactions:* ${s.billCount}\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `📍 *Location:* ${PARK_LOCATION_ADDRESS}\n`;
         msg += `_Kurunji Fun World Staff Billing System_`;
 
         return msg;
@@ -668,6 +797,28 @@ const POSShare = {
         if (upiEl) upiEl.textContent = `₹${summary.paymentModes.UPI.toLocaleString('en-IN')}`;
         if (cardEl) cardEl.textContent = `₹${summary.paymentModes.Card.toLocaleString('en-IN')}`;
         if (labelEl) labelEl.textContent = periodLabel;
+
+        // Also sync top dashboard metric cards
+        const topVis = document.getElementById('stat-visitors');
+        const topTxn = document.getElementById('stat-transactions');
+        const topRev = document.getElementById('stat-revenue');
+        const topWal = document.getElementById('stat-wallets');
+        const topRec = document.getElementById('stat-recharges');
+
+        const distinctCards = new Set();
+        (filtered || []).forEach(tx => {
+            if (tx.cardNumber) distinctCards.add(tx.cardNumber);
+        });
+
+        const rechargeRev = (summary.depts && summary.depts["Ground Floor (Recharge)"])
+            ? (summary.depts["Ground Floor (Recharge)"].revenue || 0)
+            : 0;
+
+        if (topVis) topVis.textContent = (summary.totalVisitors > 0) ? summary.totalVisitors.toString() : ((summary.billCount > 0) ? summary.billCount.toString() : "0");
+        if (topTxn) topTxn.textContent = (summary.billCount || 0).toString();
+        if (topRev) topRev.textContent = `₹${(summary.totalRevenue || 0).toLocaleString('en-IN')}`;
+        if (topWal) topWal.textContent = distinctCards.size > 0 ? distinctCards.size.toString() : (rechargeRev > 0 ? "Active" : "0");
+        if (topRec) topRec.textContent = `₹${rechargeRev.toLocaleString('en-IN')}`;
     },
 
     /**

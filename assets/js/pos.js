@@ -1,145 +1,196 @@
 /**
- * pos.js
- * Logic for the Staff POS Dashboard
+ * assets/js/pos.js
+ * POS Dashboard & Shift Management for Kurunji Fun World
  */
 
-document.addEventListener("DOMContentLoaded", async () => {
-    // 1. Enforce Authentication
-    const session = await requireStaffAuth();
+function initDashboard() {
+    // Check staff auth
+    const session = requireStaffAuth();
     if (!session) return;
-    
-    // Unhide body once authenticated
-    const appBody = document.getElementById("app-body");
-    if (appBody) appBody.classList.remove("hidden");
 
-    // 2. Set UI Elements (with null guards so we never crash)
-    const staffNameEl = document.getElementById("staff-name");
-    const staffRoleEl = document.getElementById("staff-role");
-    const staffNameMobileEl = document.getElementById("staff-name-mobile");
-    const currentDateEl = document.getElementById("current-date");
-    const logoutBtn = document.getElementById("logout-btn");
+    // Display Staff Header Info
+    const staffNameEl = document.getElementById('staff-name') || document.getElementById('staff-name-mobile');
+    const staffRoleEl = document.getElementById('staff-role');
+    const staffBadge = document.getElementById('staff-email-badge');
 
-    const displayName = session.email ? session.email.split("@")[0].toUpperCase() : "STAFF";
-    const displayRole = session.role || "Staff";
+    if (staffNameEl && session.email) {
+        staffNameEl.textContent = session.email.split('@')[0].toUpperCase();
+    }
+    if (staffRoleEl && session.role) {
+        staffRoleEl.textContent = session.role === 'SUPER_ADMIN' ? 'Administrator' : (session.role === 'MANAGER' ? 'Manager' : 'Counter Staff');
+    }
+    if (staffBadge && session.email) {
+        staffBadge.textContent = session.email.split('@')[0].toUpperCase();
+    }
 
-    if (staffNameEl) staffNameEl.textContent = displayName;
-    if (staffRoleEl) staffRoleEl.textContent = displayRole;
-    if (staffNameMobileEl) staffNameMobileEl.textContent = displayName;
-
-    // Set Date in IST
-    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-    if (currentDateEl) currentDateEl.textContent = new Date().toLocaleDateString("en-IN", options);
-
-    // 3. Logout Handler
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-            if (confirm("Are you sure you want to log out?")) {
-                await logoutAdmin();
-                window.location.href = "staff-login.html";
-            }
+    // Set today's date formatted nicely
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) {
+        dateEl.textContent = new Date().toLocaleDateString('en-IN', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
     }
 
-    // 4. Load Real Data from History with Session Cache
-    async function loadDashboardStats() {
-        const statIds = ["stat-visitors", "stat-transactions", "stat-revenue", "stat-wallets", "stat-recharges"];
-        statIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = "...";
-        });
-
-        try {
-            const todayIST = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd' in local IST timezone
-            const cacheKey = 'pos_dashboard_stats_' + todayIST;
-            const cached = sessionStorage.getItem(cacheKey);
-            const cachedTime = sessionStorage.getItem(cacheKey + '_time');
-            
-            // If cached within last 45 seconds, render immediately
-            if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < 45000) {
-                renderStats(JSON.parse(cached));
-                return;
-            }
-
-            const res = await fetchTransactionHistory({ startDate: todayIST, endDate: todayIST });
-            if (res && res.status === "success" && Array.isArray(res.history)) {
-                let visitors = 0;
-                let transactions = 0;
-                let revenue = 0;
-                let rechargeRevenue = 0;
-                const distinctCards = new Set();
-
-                res.history.forEach(tx => {
-                    const txId = String(tx.id || "");
-                    const isCompleted = tx.status === "COMPLETED" || tx.status === "CHECKED_IN" || !tx.status;
-                    if (!isCompleted) return;
-
-                    transactions++;
-                    const amt = parseFloat(tx.amount) || 0;
-                    revenue += amt;
-
-                    // Demographic / Visitor calculations
-                    const adultCount = parseInt(tx.adultCount) || 0;
-                    const childCount = parseInt(tx.childCount) || 0;
-                    if (adultCount > 0 || childCount > 0) {
-                        visitors += (adultCount + childCount);
-                    } else if (txId.startsWith("B-FF") || txId.startsWith("B-OUT")) {
-                        visitors += 1;
-                    }
-
-                    // Card & Recharge calculations
-                    if (tx.cardNumber) {
-                        distinctCards.add(tx.cardNumber);
-                    }
-                    if (tx.type === "Ground Floor Recharge" || txId.startsWith("B-GF-REC")) {
-                        rechargeRevenue += amt;
-                        if (tx.cardNumber) distinctCards.add(tx.cardNumber);
-                    }
-                });
-
-                const statsData = {
-                    visitors: visitors > 0 ? visitors + "+" : (transactions > 0 ? transactions + "+" : "0"),
-                    transactions: transactions,
-                    revenue: "₹" + revenue.toLocaleString("en-IN"),
-                    wallets: distinctCards.size > 0 ? distinctCards.size : (rechargeRevenue > 0 ? "Active" : "0"),
-                    recharges: "₹" + rechargeRevenue.toLocaleString("en-IN")
-                };
-
-                // Cache calculated stats
-                sessionStorage.setItem(cacheKey, JSON.stringify(statsData));
-                sessionStorage.setItem(cacheKey + '_time', Date.now().toString());
-
-                renderStats(statsData);
+    // Render from session cache immediately if available
+    try {
+        const cached = sessionStorage.getItem('cached_history_data');
+        if (cached) {
+            const hist = JSON.parse(cached);
+            if (Array.isArray(hist) && hist.length > 0) {
                 if (typeof POSShare !== 'undefined') {
-                    POSShare.cachedAllTransactions = res.history;
+                    POSShare.cachedAllTransactions = hist;
+                }
+                computeAndRenderStats(hist);
+                if (typeof POSShare !== 'undefined' && POSShare.switchDashboardReportPeriod) {
                     POSShare.switchDashboardReportPeriod(POSShare.currentSelectedPeriod || 'today');
                 }
-            } else {
-                statIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = "-";
-                });
             }
-        } catch (e) {
-            console.error("Dashboard stats error:", e);
-            statIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = "-";
+        }
+    } catch(e) {}
+
+    // Initialize Live Dashboard Stats & Reports
+    loadDashboardStats();
+
+    // Setup Refresh Button if present
+    const refreshBtn = document.getElementById('refresh-stats-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('cached_history_data');
+            loadDashboardStats(true);
+        });
+    }
+}
+
+// Ensure execution
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+} else {
+    initDashboard();
+}
+
+async function loadDashboardStats(forceRefresh = false) {
+    try {
+        const todayIST = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd'
+        
+        // Fetch all recent transactions
+        let res = null;
+        try {
+            res = await fetchTransactionHistory({ limit: 200 });
+        } catch (apiErr) {
+            console.warn("fetchTransactionHistory failed, checking local sync queue:", apiErr);
+        }
+
+        let history = (res && res.status === "success" && Array.isArray(res.history)) ? res.history : [];
+
+        // If online returned empty or failed, merge offline queue items
+        if (typeof POSOfflineSync !== 'undefined') {
+            const queue = POSOfflineSync.getQueue ? POSOfflineSync.getQueue() : [];
+            queue.forEach(qItem => {
+                const p = qItem.payload || {};
+                const r = qItem.result || {};
+                const id = qItem.id || r.billId || 'OFF-' + Date.now();
+                if (!history.find(h => h.id === id)) {
+                    history.unshift({
+                        id: id,
+                        date: qItem.createdAt || todayIST,
+                        time: new Date(qItem.createdAt || Date.now()).toLocaleTimeString('en-US'),
+                        customerName: p.customerName || 'Offline Guest',
+                        customerPhone: p.phone || '',
+                        type: qItem.action ? qItem.action.replace('process', '') : 'Billing',
+                        amount: r.total || p.total || 0,
+                        points: r.balance || 0,
+                        adultCount: p.adultCount || 1,
+                        childCount: p.childCount || 0,
+                        status: 'COMPLETED',
+                        paymentMethod: p.paymentMethod || 'Cash',
+                        cardNumber: p.cardNumber || ''
+                    });
+                }
             });
         }
+
+        // Cache in session
+        try {
+            sessionStorage.setItem('cached_history_data', JSON.stringify(history));
+        } catch(e) {}
+
+        // Cache history for POSShare multi-period reports
+        if (typeof POSShare !== 'undefined') {
+            POSShare.cachedAllTransactions = history;
+        }
+
+        computeAndRenderStats(history);
+
+        // Update the Owner Report Widget
+        if (typeof POSShare !== 'undefined' && POSShare.switchDashboardReportPeriod) {
+            POSShare.switchDashboardReportPeriod(POSShare.currentSelectedPeriod || 'today');
+        }
+    } catch (e) {
+        console.error("Dashboard stats error:", e);
     }
+}
 
-    function renderStats(stats) {
-        const setEl = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = val;
-        };
+function computeAndRenderStats(history) {
+    const todayIST = new Date().toLocaleDateString('en-CA');
+    const todayTxns = (typeof POSShare !== 'undefined' && POSShare.filterTransactionsByPeriod) 
+        ? POSShare.filterTransactionsByPeriod(history, 'today')
+        : history.filter(tx => String(tx.date || '').includes(todayIST));
 
-        setEl("stat-transactions", stats.transactions);
-        setEl("stat-revenue", stats.revenue);
-        setEl("stat-wallets", stats.wallets);
-        setEl("stat-recharges", stats.recharges);
-        setEl("stat-visitors", stats.visitors);
-    }
+    let visitors = 0;
+    let transactions = 0;
+    let revenue = 0;
+    let rechargeRevenue = 0;
+    const distinctCards = new Set();
 
-    loadDashboardStats();
-});
+    todayTxns.forEach(tx => {
+        const txId = String(tx.id || "");
+        const isCompleted = tx.status === "COMPLETED" || tx.status === "CHECKED_IN" || !tx.status;
+        if (!isCompleted) return;
+
+        transactions++;
+        const amt = parseFloat(tx.amount) || 0;
+        revenue += amt;
+
+        // Demographic / Visitor calculations
+        const adultCount = parseInt(tx.adultCount) || 0;
+        const childCount = parseInt(tx.childCount) || 0;
+        if (adultCount > 0 || childCount > 0) {
+            visitors += (adultCount + childCount);
+        } else if (txId.startsWith("B-FF") || txId.startsWith("B-OUT")) {
+            visitors += 1;
+        }
+
+        // Card & Recharge calculations
+        if (tx.cardNumber) distinctCards.add(tx.cardNumber);
+        if (tx.type === "Ground Floor Recharge" || txId.startsWith("B-GF-REC") || tx.type === "Recharge") {
+            rechargeRevenue += amt;
+            if (tx.cardNumber) distinctCards.add(tx.cardNumber);
+        }
+    });
+
+    const statsData = {
+        visitors: visitors > 0 ? visitors.toString() : (transactions > 0 ? transactions.toString() : "0"),
+        transactions: transactions.toString(),
+        revenue: "₹" + revenue.toLocaleString("en-IN"),
+        wallets: distinctCards.size > 0 ? distinctCards.size.toString() : (rechargeRevenue > 0 ? "Active" : "0"),
+        recharges: "₹" + rechargeRevenue.toLocaleString("en-IN")
+    };
+
+    renderStats(statsData);
+}
+
+function renderStats(stats) {
+    const setEl = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+
+    setEl("stat-transactions", stats.transactions);
+    setEl("stat-revenue", stats.revenue);
+    setEl("stat-wallets", stats.wallets);
+    setEl("stat-recharges", stats.recharges);
+    setEl("stat-visitors", stats.visitors);
+}

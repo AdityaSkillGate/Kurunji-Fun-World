@@ -1,102 +1,68 @@
 /**
- * pos-outdoor.js
- * Logic for Outdoor Direct Billing POS Module (Unified Single Page)
+ * assets/js/pos-outdoor.js
+ * Outdoor POS Single-Page Billing with Item-Level Adult & Child Member Selection
+ * Kurunji Fun World Staff POS
  */
 
-let cart = []; // Array of { id, name, price, qty, total }
+let cart = [];
+let pendingAttraction = null;
+let pendingAdultQty = 1;
+let pendingChildQty = 0;
 let appliedCoupon = null;
 let appliedDiscount = 0;
 let appliedBonus = 0;
-let pendingAttraction = null;
-let pendingQty = 1;
 
-function updateDemographics(type, change) {
-    if (type === 'adult') {
-        let n = (parseInt(document.getElementById('adult-count')?.value || 1) || 0) + change;
-        if (n >= 0 && n <= 50) {
-            const el = document.getElementById('adult-count');
-            if (el) el.value = n;
-        }
-    } else {
-        let n = (parseInt(document.getElementById('child-count')?.value || 0) || 0) + change;
-        if (n >= 0 && n <= 50) {
-            const el = document.getElementById('child-count');
-            if (el) el.value = n;
-        }
-    }
-}
-
-function validateDemographics() {
-    const aEl = document.getElementById('adult-count');
-    const cEl = document.getElementById('child-count');
-    if (aEl) {
-        let val = parseInt(aEl.value) || 0;
-        if (val < 0) val = 0;
-        aEl.value = val;
-    }
-    if (cEl) {
-        let val = parseInt(cEl.value) || 0;
-        if (val < 0) val = 0;
-        cEl.value = val;
-    }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Enforce Auth
-    const session = await requireStaffAuth();
+document.addEventListener('DOMContentLoaded', () => {
+    // Fast local auth check
+    const session = requireStaffAuth();
     if (!session) return;
-    
-    const appBody = document.getElementById('app-body');
-    if (appBody) appBody.classList.remove('hidden');
 
-    // 2. Load Attractions Instantly
+    // Load Attractions Grid
     loadAttractions();
 
-    // 3. UI Handlers
-    function onEl(id, evt, fn) {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener(evt, fn);
+    // Clear Cart button
+    const clearBtn = document.getElementById('clear-cart-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            cart = [];
+            appliedCoupon = null;
+            appliedDiscount = 0;
+            appliedBonus = 0;
+            updateCartUI();
+        });
     }
 
-    onEl('confirm-btn', 'click', processBilling);
-    onEl('complete-btn', 'click', processBilling);
-    onEl('review-cancel-btn', 'click', () => {
-        const m = document.getElementById('review-modal');
-        if (m) m.classList.add('hidden');
-    });
-    onEl('review-confirm-btn', 'click', executeOrder);
-    onEl('clear-cart-btn', 'click', () => {
-        if (confirm("Clear all items from this transaction?")) {
-            cart = [];
-            updateCartUI();
-        }
-    });
+    // Modal Qty Add & Cancel
+    const modalAdd = document.getElementById('modal-qty-add');
+    if (modalAdd) modalAdd.addEventListener('click', confirmAddToCard);
 
-    // Qty Modal Handlers
-    onEl('modal-qty-minus', 'click', () => updatePendingQty(-1));
-    onEl('modal-qty-plus', 'click', () => updatePendingQty(1));
-    onEl('modal-qty-cancel', 'click', () => {
-        const qm = document.getElementById('qty-modal');
-        if (qm) qm.classList.add('hidden');
-        pendingAttraction = null;
-    });
-    onEl('modal-qty-add', 'click', confirmAddToCard);
-    
-    onEl('print-btn', 'click', () => window.print());
-    onEl('new-txn-btn', 'click', () => window.location.reload());
+    const modalCancel = document.getElementById('modal-qty-cancel');
+    if (modalCancel) {
+        modalCancel.addEventListener('click', () => {
+            const qm = document.getElementById('qty-modal');
+            if (qm) qm.classList.add('hidden');
+            pendingAttraction = null;
+        });
+    }
 
-    // Payment Method Selection
-    document.querySelectorAll('.payment-method-card').forEach(card => {
+    // Review Modal Buttons
+    const reviewBtn = document.getElementById('complete-btn') || document.getElementById('confirm-btn');
+    if (reviewBtn) reviewBtn.addEventListener('click', processBilling);
+
+    const reviewConfirm = document.getElementById('review-confirm-btn');
+    if (reviewConfirm) reviewConfirm.addEventListener('click', executeOrder);
+
+    const reviewCancel = document.getElementById('review-cancel-btn');
+    if (reviewCancel) {
+        reviewCancel.addEventListener('click', () => {
+            const rm = document.getElementById('review-modal');
+            if (rm) rm.classList.add('hidden');
+        });
+    }
+
+    // Payment Radio Styling
+    document.querySelectorAll('.payment-radio-card').forEach(card => {
         card.addEventListener('click', function() {
-            if (this.querySelector('input[disabled]')) return;
-            document.querySelectorAll('.payment-method-card').forEach(c => {
-                c.classList.remove('border-primary', 'bg-blue-50/70', 'text-primary');
-                c.classList.add('border-slate-200', 'text-slate-700');
-                const radio = c.querySelector('input[type="radio"]');
-                if (radio) radio.checked = false;
-            });
-            this.classList.remove('border-slate-200', 'text-slate-700');
-            this.classList.add('border-primary', 'bg-blue-50/70', 'text-primary');
             const r = this.querySelector('input[type="radio"]');
             if (r) r.checked = true;
         });
@@ -182,6 +148,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    // New Transaction button
+    const newTxnBtn = document.getElementById('new-txn-btn');
+    if (newTxnBtn) {
+        newTxnBtn.addEventListener('click', () => {
+            location.reload();
+        });
+    }
 });
 
 async function loadAttractions() {
@@ -227,48 +201,113 @@ async function loadAttractions() {
     }
 }
 
+/**
+ * Open Modal to choose Adult & Child Tickets for this specific ride
+ */
 function openQtyModal(attr, price) {
     pendingAttraction = {
         id: attr.AttractionID,
         name: attr.Name,
         price: price
     };
-    pendingQty = 1;
+    
+    // Check if this ride is already in cart to prefill
+    const existing = cart.find(item => item.id === attr.AttractionID);
+    if (existing) {
+        pendingAdultQty = existing.adultQty || 0;
+        pendingChildQty = existing.childQty || 0;
+    } else {
+        pendingAdultQty = 1;
+        pendingChildQty = 0;
+    }
     
     const titleEl = document.getElementById('qty-modal-title');
     const priceEl = document.getElementById('qty-modal-price');
-    const inputEl = document.getElementById('modal-qty-input');
+    const adultRateEl = document.getElementById('modal-adult-rate');
+    const childRateEl = document.getElementById('modal-child-rate');
+    const adultInput = document.getElementById('modal-adult-input');
+    const childInput = document.getElementById('modal-child-input');
     const qm = document.getElementById('qty-modal');
     
     if (titleEl) titleEl.textContent = attr.Name;
     if (priceEl) priceEl.textContent = `₹${price} / visitor`;
-    if (inputEl) inputEl.value = pendingQty;
+    if (adultRateEl) adultRateEl.textContent = `₹${price} each`;
+    if (childRateEl) childRateEl.textContent = `₹${price} each`;
+    if (adultInput) adultInput.value = pendingAdultQty;
+    if (childInput) childInput.value = pendingChildQty;
+    
+    updateModalTotalsPreview();
     if (qm) qm.classList.remove('hidden');
 }
 
-function updatePendingQty(change) {
-    let newQty = pendingQty + change;
-    if (newQty >= 1 && newQty <= 50) {
-        pendingQty = newQty;
-        const el = document.getElementById('modal-qty-input');
-        if (el) el.value = pendingQty;
+/**
+ * Adjust Adult or Child count inside the ride modal
+ */
+function updateModalQty(type, delta) {
+    if (type === 'adult') {
+        let val = pendingAdultQty + delta;
+        if (val < 0) val = 0;
+        if (val > 50) val = 50;
+        pendingAdultQty = val;
+        const el = document.getElementById('modal-adult-input');
+        if (el) el.value = pendingAdultQty;
+    } else if (type === 'child') {
+        let val = pendingChildQty + delta;
+        if (val < 0) val = 0;
+        if (val > 50) val = 50;
+        pendingChildQty = val;
+        const el = document.getElementById('modal-child-input');
+        if (el) el.value = pendingChildQty;
+    }
+    updateModalTotalsPreview();
+}
+
+function updateModalTotalsPreview() {
+    if (!pendingAttraction) return;
+    const totalTickets = pendingAdultQty + pendingChildQty;
+    const subtotal = totalTickets * pendingAttraction.price;
+    
+    const ticketsEl = document.getElementById('modal-total-tickets');
+    const subtotalEl = document.getElementById('modal-subtotal-price');
+    const addBtn = document.getElementById('modal-qty-add');
+    
+    if (ticketsEl) ticketsEl.textContent = `${totalTickets} ticket${totalTickets === 1 ? '' : 's'} (${pendingAdultQty}A / ${pendingChildQty}C)`;
+    if (subtotalEl) subtotalEl.textContent = `₹${subtotal}`;
+    
+    if (addBtn) {
+        if (totalTickets <= 0) {
+            addBtn.disabled = true;
+            addBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            addBtn.disabled = false;
+            addBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
     }
 }
 
+/**
+ * Add / Update the selected ride in Cart with adult/child breakdown
+ */
 function confirmAddToCard() {
     if (!pendingAttraction) return;
+    const totalTickets = pendingAdultQty + pendingChildQty;
+    if (totalTickets <= 0) return;
     
     const existingIdx = cart.findIndex(item => item.id === pendingAttraction.id);
     if (existingIdx >= 0) {
-        cart[existingIdx].qty += pendingQty;
-        cart[existingIdx].total = cart[existingIdx].qty * cart[existingIdx].price;
+        cart[existingIdx].adultQty = pendingAdultQty;
+        cart[existingIdx].childQty = pendingChildQty;
+        cart[existingIdx].qty = totalTickets;
+        cart[existingIdx].total = totalTickets * pendingAttraction.price;
     } else {
         cart.push({
             id: pendingAttraction.id,
             name: pendingAttraction.name,
             price: pendingAttraction.price,
-            qty: pendingQty,
-            total: pendingQty * pendingAttraction.price
+            adultQty: pendingAdultQty,
+            childQty: pendingChildQty,
+            qty: totalTickets,
+            total: totalTickets * pendingAttraction.price
         });
     }
     
@@ -295,6 +334,8 @@ function updateCartUI() {
     }
     
     let totalCost = 0;
+    let totalAdults = 0;
+    let totalChildren = 0;
     
     if (cart.length === 0) {
         if (container && emptyMsg) { container.appendChild(emptyMsg); emptyMsg.classList.remove('hidden'); }
@@ -309,16 +350,27 @@ function updateCartUI() {
         
         cart.forEach((item, idx) => {
             totalCost += item.total;
+            totalAdults += (item.adultQty || 0);
+            totalChildren += (item.childQty || 0);
+
+            let breakdownParts = [];
+            if (item.adultQty > 0) breakdownParts.push(`${item.adultQty} Adult${item.adultQty > 1 ? 's' : ''}`);
+            if (item.childQty > 0) breakdownParts.push(`${item.childQty} Child${item.childQty > 1 ? 'ren' : ''}`);
+            const breakdownStr = breakdownParts.join(', ');
+
             if (container) {
                 const div = document.createElement('div');
-                div.className = "bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 flex justify-between items-center";
+                div.className = "bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 flex justify-between items-center hover:border-slate-300 transition-colors";
                 div.innerHTML = `
-                    <div>
-                        <div class="font-bold text-slate-800 text-xs sm:text-sm leading-tight">${item.name}</div>
-                        <div class="text-[11px] text-slate-500 mt-0.5">${item.qty} x ₹${item.price}</div>
+                    <div class="cursor-pointer" onclick="openQtyModal({AttractionID: '${item.id}', Name: '${item.name.replace(/'/g, "\'")}'}, ${item.price})">
+                        <div class="font-bold text-slate-800 text-xs sm:text-sm leading-tight hover:text-primary transition-colors">${item.name}</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5 font-medium">
+                            <span class="bg-blue-100/70 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${breakdownStr}</span>
+                            <span>(${item.qty} x ₹${item.price})</span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div class="font-bold text-primary text-sm">₹${item.total}</div>
+                        <div class="font-bold text-primary text-sm sm:text-base">₹${item.total}</div>
                         <button type="button" class="text-slate-400 hover:text-red-500 p-1 transition-colors" onclick="removeFromCart(${idx})" title="Remove">
                             <span class="material-symbols-outlined text-base">delete</span>
                         </button>
@@ -339,38 +391,62 @@ function updateCartUI() {
     if (tcEl) tcEl.textContent = `₹${finalTotal}`;
 }
 
+/**
+ * Review Modal displaying exact calculated Demographics and items
+ */
 function processBilling() {
     if (cart.length === 0) return;
     
     let totalCost = cart.reduce((sum, item) => sum + item.total, 0);
     let finalPay = Math.max(0, totalCost - appliedDiscount);
+    let totalAdults = cart.reduce((sum, item) => sum + (item.adultQty || 0), 0);
+    let totalChildren = cart.reduce((sum, item) => sum + (item.childQty || 0), 0);
+    let totalVisitors = totalAdults + totalChildren;
+
     let discountBlock = '';
-    
     if (appliedDiscount > 0) {
         discountBlock = `<div class="flex justify-between text-green-600 font-semibold mb-2 text-sm"><span>Discount</span><span>-₹${appliedDiscount}</span></div>`;
     }
     
     let itemsHtml = '';
     cart.forEach(item => {
-        itemsHtml += `<div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
-            <span>${item.name} (x${item.qty})</span>
-            <span>₹${item.total}</span>
+        let breakdown = [];
+        if (item.adultQty > 0) breakdown.push(`${item.adultQty}A`);
+        if (item.childQty > 0) breakdown.push(`${item.childQty}C`);
+        itemsHtml += `<div class="flex justify-between text-slate-700 font-medium mb-1.5 text-xs sm:text-sm">
+            <span>${item.name} <strong class="text-slate-500 text-xs">(${breakdown.join(', ')})</strong></span>
+            <span class="font-bold">₹${item.total}</span>
         </div>`;
     });
     
+    const customerName = document.getElementById('cust-name') ? document.getElementById('cust-name').value.trim() : "";
+    const phone = document.getElementById('cust-phone') ? document.getElementById('cust-phone').value.trim() : "";
+
     const content = `
-        <div class="space-y-4">
-            <div class="bg-green-50 border border-green-100 p-4 rounded-xl">
-                <div class="text-sm font-bold text-green-800 mb-2">Outdoor Games Order</div>
+        <div class="space-y-3.5">
+            <div class="bg-green-50/80 border border-green-200/80 p-3.5 rounded-xl text-xs sm:text-sm">
+                <div class="flex justify-between text-slate-700 mb-1">
+                    <span>Customer</span>
+                    <strong class="text-slate-900">${customerName || "Walk-in Guest"}</strong>
+                </div>
+                ${phone ? `<div class="flex justify-between text-slate-700 mb-1"><span>Mobile</span><strong class="font-mono text-slate-900">+91 ${phone}</strong></div>` : ''}
+                <div style="margin:12px;" class="flex justify-between text-emerald-800 font-bold border-t border-green-200/80 pt-1.5 mt-1.5">
+                    <span>Total Members</span>
+                    <span>${totalVisitors} Visitors (${totalAdults} Adults, ${totalChildren} Children)</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <div class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Selected Rides Breakdown</div>
                 ${itemsHtml}
-                <div class="flex justify-between text-slate-700 font-medium mt-2 pt-2 border-t border-green-200 text-sm">
+                <div class="flex justify-between text-slate-700 font-medium mt-2 pt-2 border-t border-slate-200 text-xs sm:text-sm">
                     <span>Subtotal</span>
                     <span>₹${totalCost}</span>
                 </div>
                 ${discountBlock}
-                <div class="flex justify-between text-xl font-bold text-slate-900 border-t border-green-200 mt-2 pt-2">
+                <div class="flex justify-between text-base sm:text-lg font-bold text-slate-900 border-t border-slate-200 mt-2 pt-2">
                     <span>Total Payable</span>
-                    <span class="text-primary">₹${finalPay}</span>
+                    <span class="text-primary font-black">₹${finalPay}</span>
                 </div>
             </div>
         </div>
@@ -382,6 +458,9 @@ function processBilling() {
     if (rm) rm.classList.remove('hidden');
 }
 
+/**
+ * Execute Order & send exact adult/child counts to Backend
+ */
 async function executeOrder() {
     if (cart.length === 0) return;
     
@@ -396,8 +475,10 @@ async function executeOrder() {
     const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
     const customerName = document.getElementById('cust-name') ? document.getElementById('cust-name').value.trim() : "Walk-in Guest";
     const phone = document.getElementById('cust-phone') ? document.getElementById('cust-phone').value.trim() : "";
-    const adultCount = parseInt(document.getElementById('adult-count')?.value || 1) || 1;
-    const childCount = parseInt(document.getElementById('child-count')?.value || 0) || 0;
+    
+    // Exact calculated demographics from all chosen ride tickets
+    const totalAdults = cart.reduce((sum, item) => sum + (item.adultQty || 0), 0);
+    const totalChildren = cart.reduce((sum, item) => sum + (item.childQty || 0), 0);
     
     if (btn) btn.disabled = true;
     if (confirmBtn) confirmBtn.disabled = true;
@@ -410,8 +491,8 @@ async function executeOrder() {
             customerName: customerName || "Walk-in Guest",
             couponCode: document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "",
             phone,
-            adultCount,
-            childCount
+            adultCount: totalAdults,
+            childCount: totalChildren
         };
         
         const response = await processOutdoorBilling(payload);
@@ -419,7 +500,7 @@ async function executeOrder() {
         if (response && response.status === 'success') {
             const rm = document.getElementById('review-modal');
             if (rm) rm.classList.add('hidden');
-            showReceipt(response, paymentMethod);
+            showReceipt(response, paymentMethod, totalAdults, totalChildren);
         } else {
             throw new Error(response ? response.message || "Transaction failed" : "Transaction failed");
         }
@@ -438,7 +519,7 @@ async function executeOrder() {
     }
 }
 
-function showReceipt(response, mode) {
+function showReceipt(response, paymentMethod, totalAdults = 1, totalChildren = 0) {
     const offBadge = document.getElementById('receipt-offline-badge');
     if (offBadge) {
         if (response && response.offline) offBadge.classList.remove('hidden');
@@ -449,32 +530,51 @@ function showReceipt(response, mode) {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
     };
-
-    setT('receipt-date', new Date().toLocaleString('en-IN'));
-    setT('receipt-bill', response.billId || 'B-OUT-' + Date.now());
     
+    setT('receipt-date', new Date().toLocaleString('en-IN'));
+    setT('receipt-bill', response.billId || response.bookingId || response.transaction || 'B-OUT-' + Date.now());
+    
+    let subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+    let finalPay = Math.max(0, subtotal - appliedDiscount);
+    setT('receipt-total', `₹${finalPay}`);
+    setT('receipt-mode', paymentMethod);
+    
+    // Inject clean item breakdown into receipt modal
     const itemsContainer = document.getElementById('receipt-items');
     if (itemsContainer) {
         itemsContainer.innerHTML = '';
-        const items = response.items || cart;
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = "flex justify-between font-semibold text-slate-800 text-xs";
-            div.innerHTML = `
-                <span>${item.name} <span class="text-slate-500 font-normal">x${item.qty}</span></span>
-                <span>₹${item.total || (item.price * item.qty)}</span>
+        cart.forEach(item => {
+            let breakdown = [];
+            if (item.adultQty > 0) breakdown.push(`${item.adultQty} Adult(s)`);
+            if (item.childQty > 0) breakdown.push(`${item.childQty} Child(ren)`);
+
+            const row = document.createElement('div');
+            row.className = "flex justify-between text-xs py-0.5 text-slate-700";
+            row.innerHTML = `
+                <span>${item.name} (${breakdown.join(', ')})</span>
+                <span class="font-bold">₹${item.total}</span>
             `;
-            itemsContainer.appendChild(div);
+            itemsContainer.appendChild(row);
         });
+
+        // Demographics summary row
+        const demoRow = document.createElement('div');
+        demoRow.className = "flex justify-between text-[11px] font-bold text-slate-500 pt-1 border-t border-slate-100";
+        demoRow.innerHTML = `
+            <span>Total Visitors</span>
+            <span>${totalAdults + totalChildren} (${totalAdults}A / ${totalChildren}C)</span>
+        `;
+        itemsContainer.appendChild(demoRow);
     }
     
-    setT('receipt-total', `₹${response.total || cart.reduce((s, i) => s + i.total, 0)}`);
-    setT('receipt-mode', mode);
-    
+    // Generate QR Code for check-in
     const qrImg = document.getElementById('receipt-qr');
+    const qrContainer = document.getElementById('qr-container');
+    const billId = response.billId || response.bookingId || response.transaction || 'B-OUT-' + Date.now();
+    
     if (qrImg) {
-        const qrData = response.billId || 'B-OUT-' + Date.now();
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(billId)}`;
+        if (qrContainer) qrContainer.classList.remove('hidden');
     }
     
     const modal = document.getElementById('receipt-modal');
