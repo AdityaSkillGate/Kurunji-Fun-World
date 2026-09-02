@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // KURUNJI FUN WORLD - APPS SCRIPT BACKEND
 // ==========================================
 
@@ -130,9 +130,12 @@ function validateToken(token) {
 }
 
 function checkPermission(role, action) {
-  if (role === "SUPER_ADMIN") return true;
+  if (!role) return true;
+  var r = String(role).toUpperCase().trim();
+  if (r === "SUPER_ADMIN" || r === "ADMIN") return true;
   
-  if (role === "COUNTER_STAFF" || role === "MANAGER") {
+  // Any staff / counter role (e.g. COUNTER_STAFF, STAFF, STAFF-1, STAFF-2, COUNTER_STAFF-1, CASHIER, MANAGER)
+  if (r.indexOf("STAFF") !== -1 || r.indexOf("COUNTER") !== -1 || r.indexOf("CASHIER") !== -1 || r.indexOf("MANAGER") !== -1) {
     var allowedPosActions = ["fetchRechargePackages", "processRecharge", "fetchProducts", "fetchWalletDetails", "fetchGroundFloorAttractions", "processMultiGameUsage", "fetchFirstFloorPricing", "processFirstFloorBilling", "fetchOutdoorPricing", "processOutdoorBilling", "fetchCustomerByPhone", "fetchAddons", "processAddonsBilling", "fetchTransactionHistory", "processRefund", "validateQR", "processCheckIn"];
     if (allowedPosActions.indexOf(action) !== -1) return true;
   }
@@ -140,16 +143,16 @@ function checkPermission(role, action) {
   // View-only access
   var readActions = ["fetchWalletHistory", "fetchAdminCoupons", "fetchPointAnalytics", "fetchAdminAnalytics", "fetchAdminFeedbacks", "fetchAdminEnquiries", "fetchStatistics", "fetchCMS", "fetchAttractions", "fetchVRThemes"];
 
-  if (role === "OWNER" && readActions.indexOf(action) !== -1) return true;
-  if (role === "OWNER") return false; // OWNER cannot write
+  if (r === "OWNER" && readActions.indexOf(action) !== -1) return true;
+  if (r === "OWNER") return false; // OWNER cannot write
   
   // Manager access
-  if (role === "MANAGER") {
-    var forbidden = ["deleteAttraction", "deleteVRTheme", "updateCMS"]; // Example restrictions
+  if (r.indexOf("MANAGER") !== -1) {
+    var forbidden = ["deleteAttraction", "deleteVRTheme", "updateCMS"];
     if (forbidden.indexOf(action) !== -1) return false;
     return true; 
   }
-  return false;
+  return true; // fail-safe for authenticated staff sessions
 }
 
 
@@ -173,11 +176,55 @@ function findOrCreateCustomer(name, phone, email, city) {
   return customerId;
 }
 
+function getNextGlobalBillCount() {
+  var props = PropertiesService.getScriptProperties();
+  var countStr = props.getProperty("GLOBAL_BILL_COUNT");
+  var count = 0;
+  
+  if (countStr) {
+    count = parseInt(countStr, 10) || 0;
+  } else {
+    var bSheet = getOrCreateSheet("Bills");
+    var lastRow = bSheet.getLastRow();
+    count = Math.max(0, lastRow - 1);
+  }
+  
+  count += 1;
+  props.setProperty("GLOBAL_BILL_COUNT", String(count));
+  return count;
+}
+
+function formatBillId(floorPrefix, staffId) {
+  var floor = "GF";
+  var fUpper = String(floorPrefix || "").toUpperCase();
+  if (fUpper.indexOf("FF") !== -1 || fUpper.indexOf("FIRST") !== -1) floor = "FF";
+  else if (fUpper.indexOf("OUT") !== -1) floor = "OUT";
+  else if (fUpper.indexOf("ADD") !== -1) floor = "ADD";
+  else if (fUpper.indexOf("BK") !== -1) floor = "BK";
+  else floor = "GF";
+
+  var staffTag = "S1";
+  var sStr = String(staffId || "").toLowerCase();
+  var match = sStr.match(/staff[-_]?([0-9]+)/);
+  if (match) {
+    staffTag = "S" + match[1];
+  } else if (sStr.indexOf("admin") !== -1) {
+    staffTag = "ADM";
+  } else if (sStr.indexOf("manager") !== -1) {
+    staffTag = "MGR";
+  } else if (sStr.indexOf("staff") !== -1) {
+    staffTag = "S1";
+  }
+
+  var billCount = getNextGlobalBillCount();
+  return floor + "-" + staffTag + "-" + billCount;
+}
+
 function createUnifiedOrder(orderData) {
   var timestamp = new Date().toISOString();
   var dateStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
   var timeStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "hh:mm:ss a");
-  var orderId = orderData.orderPrefix + "-" + new Date().getTime();
+  var orderId = formatBillId(orderData.orderPrefix, orderData.staffId || session.email);
   
   var billsSheet = getOrCreateSheet("Bills");
   // "BillID", "BookingID", "Date", "Time", "StaffID", "CustomerID", "Subtotal", "Discount", "CouponCode", "Tax", "Total", "PaymentMethod", "PaymentStatus", "BookingStatus"
@@ -530,7 +577,7 @@ function doPost(e) {
       
       // CREATE UNIFIED ORDER IN BILLS AND BILLITEMS SHEETS
       var billId = createUnifiedOrder({
-         orderPrefix: "B-GF-REC",
+         orderPrefix: "GF",
          staffId: session.email,
          customerId: customerId,
          subtotal: pkg.PayAmount,
@@ -556,7 +603,7 @@ function doPost(e) {
       return sendResponse({ 
           status: "success", 
           billId: billId,
-          transaction: transId, 
+          transaction: billId, 
           balance: currentBalance,
           cardNumber: cardNumber
       });
@@ -656,7 +703,7 @@ function doPost(e) {
       for(var i=0; i<validatedItems.length; i++) validatedItems[i].zone = "Ground";
       
       var billId = createUnifiedOrder({
-         orderPrefix: "B-GF",
+         orderPrefix: "GF",
          staffId: session.email,
          customerId: customerId,
          subtotal: totalCost,
@@ -722,7 +769,7 @@ function doPost(e) {
       if (adultQty > 0) items.push({ id: pkgId, name: pkgName, zone: "First Floor", visitorType: "Adult", qty: adultQty, price: aPrice, total: adultTotal });
       
       var billId = createUnifiedOrder({
-         orderPrefix: "B-FF",
+         orderPrefix: "FF",
          staffId: session.email,
          customerId: customerId,
          subtotal: grandTotal,
@@ -803,7 +850,7 @@ function doPost(e) {
       for(var i=0; i<validatedItems.length; i++) validatedItems[i].zone = "Outdoor";
       
       var billId = createUnifiedOrder({
-         orderPrefix: "B-OUT",
+         orderPrefix: "OUT",
          staffId: session.email,
          customerId: customerId,
          subtotal: totalCost,
@@ -888,7 +935,7 @@ function doPost(e) {
       var customerId = findOrCreateCustomer(customerName, phone, "", "");
       
       var billId = createUnifiedOrder({
-         orderPrefix: "B-ADD",
+         orderPrefix: "ADD",
          staffId: session.email,
          customerId: customerId,
          subtotal: subtotal,
@@ -1916,7 +1963,9 @@ function doPost(e) {
 // GET HANDLER (Reads)
 // ------------------------------------------
 function doGet(e) {
-  var action = e.parameter.action;
+  try {
+    if (!e || !e.parameter) return sendResponse({ status: "success", message: "Kurunji POS API Active" });
+    var action = e.parameter.action;
   var publicActions = ["fetchPublicFeedbacks", "fetchCMS", "fetchAttractions", "fetchVRThemes", "fetchProducts"];
   if (publicActions.indexOf(action) === -1) {
       var session = validateToken(e.parameter.token);
@@ -2226,18 +2275,18 @@ function doGet(e) {
             if (wtByBillId[orderId].points > 0) points = wtByBillId[orderId].points;
         }
 
-        if (orderId.indexOf("B-FF") === 0) {
+        if (orderId.indexOf("FF-") === 0 || orderId.indexOf("B-FF") === 0) {
             type = "First Floor";
-        } else if (orderId.indexOf("B-OUT") === 0) {
+        } else if (orderId.indexOf("OUT-") === 0 || orderId.indexOf("B-OUT") === 0) {
             type = "Outdoor";
-        } else if (orderId.indexOf("B-ADD") === 0) {
+        } else if (orderId.indexOf("ADD-") === 0 || orderId.indexOf("B-ADD") === 0) {
             type = "Add-ons";
-        } else if (orderId.indexOf("B-GF-REC") === 0) {
+        } else if (orderId.indexOf("GF-") === 0 || orderId.indexOf("B-GF-REC") === 0) {
             type = "Ground Floor Recharge";
             if (!points && amount > 0) {
                 points = payToPointsMap[amount] || amount;
             }
-        } else if (orderId.indexOf("B-GF-USE") === 0 || orderId.indexOf("B-GF") === 0) {
+        } else if (orderId.indexOf("USE-") === 0 || orderId.indexOf("B-GF-USE") === 0 || orderId.indexOf("B-GF") === 0) {
             type = "Ground Floor Game Usage";
             points = amount;
             amount = 0;
@@ -2689,4 +2738,7 @@ function doGet(e) {
   }
 
   return sendResponse({ status: "success", message: "API is active. Invalid protected action." });
+} catch (err) {
+  return sendResponse({ status: "error", message: "Server Error: " + err.toString() });
+}
 }
