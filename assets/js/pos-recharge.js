@@ -342,23 +342,32 @@ async function executeOrder() {
     
     const btn = document.getElementById('review-confirm-btn');
     const completeBtn = document.getElementById('complete-btn');
-    const spinner = document.getElementById('processing-spinner');
+    const spinner = document.getElementById('review-spinner') || document.getElementById('processing-spinner');
     
-    if (btn) btn.disabled = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>Processing Recharge...</span> <span class="material-symbols-outlined text-base animate-spin">progress_activity</span>`;
+    }
     if (completeBtn) completeBtn.disabled = true;
     if (spinner) { spinner.classList.remove('hidden'); spinner.classList.add('animate-spin'); }
     
+    const adultEl = document.getElementById('adult-count') || document.getElementById('adult-qty');
+    const childEl = document.getElementById('child-count') || document.getElementById('child-qty');
+    const adultCount = adultEl ? (parseInt(adultEl.value, 10) || 1) : 1;
+    const childCount = childEl ? (parseInt(childEl.value, 10) || 0) : 0;
+    const couponEl = document.getElementById('coupon-code') || document.getElementById('coupon-input');
+
     try {
         const payload = {
             package: selectedPackage,
             cardNumber,
             customerName,
-            couponCode: document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "",
+            couponCode: couponEl ? couponEl.value.trim().toUpperCase() : "",
             phone: mobile,
             email,
             paymentMethod,
-            adultCount: adultQty,
-            childCount: childQty
+            adultCount: adultCount,
+            childCount: childCount
         };
         
         const response = await processRecharge(payload);
@@ -375,7 +384,10 @@ async function executeOrder() {
             errBox.textContent = e.message;
             errBox.classList.remove('hidden');
         }
-        if (btn) btn.disabled = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Confirm &amp; Recharge</span><span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>`;
+        }
         if (completeBtn) completeBtn.disabled = false;
     } finally {
         if (spinner) {
@@ -397,8 +409,11 @@ function showReceipt(response, payload) {
         if (el) el.textContent = val;
     };
 
+    const billId = response.billId || response.transaction || generateClientBillId('GF');
+
     setT('receipt-date', new Date().toLocaleString('en-IN'));
-    setT('receipt-txn', response.transaction || response.billId || 'TXN-' + Date.now());
+    setT('receipt-txn', billId);
+    setT('receipt-bill', billId);
     setT('receipt-card', response.cardNumber || payload.cardNumber);
     setT('receipt-pay', `₹${payload.package.PayAmount}`);
     setT('receipt-mode', payload.paymentMethod);
@@ -413,3 +428,12 @@ window.closeReceiptModal = function() {
     const modal = document.getElementById('receipt-modal');
     if (modal) modal.classList.add('hidden');
 };
+
+
+window.handleRechargeSubmit = handleRechargeSubmit;
+window.executeOrder = executeOrder;
+
+window.handleRechargeSubmit = handleRechargeSubmit;
+window.executeOrder = executeOrder;
+window.selectPackage = selectPackage;
+window.applyCoupon = applyCoupon;

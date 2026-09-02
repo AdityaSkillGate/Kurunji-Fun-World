@@ -129,7 +129,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('time-filter').addEventListener('change', applyFilters);
-    document.getElementById('staff-filter').addEventListener('change', applyFilters);
+    document.getElementById('staff-filter').addEventListener('change', (e) => {
+        if (e.target.value === 'me') setStaffTab('me');
+        else if (e.target.value === 'all') setStaffTab('all');
+        else applyFilters();
+    });
     document.getElementById('status-filter').addEventListener('change', applyFilters);
     
     document.querySelectorAll('.type-filter').forEach(cb => {
@@ -147,6 +151,43 @@ document.addEventListener('DOMContentLoaded', async () => {
             applyFilters();
         });
     });
+
+    
+    // Bind Staff Quick Toggle Tabs
+    const tabMyBills = document.getElementById('tab-my-bills');
+    const tabAllBills = document.getElementById('tab-all-bills');
+    const staffSelect = document.getElementById('staff-filter');
+
+    if (currentSession && currentSession.email) {
+        const myName = currentSession.email.split('@')[0];
+        const tabLabel = document.getElementById('tab-my-bills-label');
+        if (tabLabel) tabLabel.textContent = `My Bills (${myName})`;
+    }
+
+    function setStaffTab(mode) {
+        if (mode === 'me') {
+            if (tabMyBills) {
+                tabMyBills.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-white text-slate-900 shadow-sm";
+            }
+            if (tabAllBills) {
+                tabAllBills.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-white/50";
+            }
+            if (staffSelect) staffSelect.value = 'me';
+        } else {
+            if (tabAllBills) {
+                tabAllBills.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-white text-slate-900 shadow-sm";
+            }
+            if (tabMyBills) {
+                tabMyBills.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-white/50";
+            }
+            if (staffSelect) staffSelect.value = 'all';
+        }
+        applyFilters();
+    }
+    window.setStaffTab = setStaffTab;
+
+    if (tabMyBills) tabMyBills.addEventListener('click', () => setStaffTab('me'));
+    if (tabAllBills) tabAllBills.addEventListener('click', () => setStaffTab('all'));
 
     // 4. Mobile Filter Drawer Handlers
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
@@ -197,32 +238,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+
+function populateStaffOptions(transactions) {
+    const staffSelect = document.getElementById('staff-filter');
+    if (!staffSelect || !Array.isArray(transactions)) return;
+    
+    const staffSet = new Set();
+    transactions.forEach(t => {
+        if (t.staff && t.staff.trim()) staffSet.add(t.staff.trim());
+    });
+
+    const currentVal = staffSelect.value;
+    let html = '<option value="all">All Staff</option><option value="me">My Transactions</option>';
+    
+    staffSet.forEach(s => {
+        const sName = s.includes('@') ? s.split('@')[0] : s;
+        html += `<option value="${s}">${sName} (${s})</option>`;
+    });
+
+    staffSelect.innerHTML = html;
+    staffSelect.value = currentVal;
+}
+
 async function loadHistory() {
     const loading = document.getElementById('loading-history');
     const container = document.getElementById('table-container');
     
     try {
         const response = await fetchTransactionHistory();
-        if (response && response.status === 'success') {
-            allTransactions = response.history || [];
-            if (loading) loading.classList.add('hidden');
-            if (container) container.classList.remove('hidden');
-            applyFilters();
-        } else {
-            // If running in dev/local mode or empty response, provide fallback
-        if (window.location.protocol === 'file:' || !response || response.status !== 'success') {
-            allTransactions = normalizeAndDeduplicateTransactions(JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]'));
+        if (response && response.status === 'success' && Array.isArray(response.history) && response.history.length > 0) {
+            allTransactions = response.history;
+            populateStaffOptions(allTransactions);
             if (loading) loading.classList.add('hidden');
             if (container) container.classList.remove('hidden');
             applyFilters();
             return;
         }
-        throw new Error((response && response.message) || 'Failed to fetch');
+
+        // If response succeeded but empty, or offline fallback
+        const offlineQueue = JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]');
+        if (response && response.status === 'success' && Array.isArray(response.history)) {
+            allTransactions = response.history.concat(normalizeAndDeduplicateTransactions(offlineQueue));
+        } else {
+            allTransactions = normalizeAndDeduplicateTransactions(offlineQueue);
         }
+
+        populateStaffOptions(allTransactions);
+        if (loading) loading.classList.add('hidden');
+        if (container) container.classList.remove('hidden');
+        applyFilters();
     } catch (e) {
-        if (loading) {
-            loading.innerHTML = `<div class="text-center p-6 bg-red-50 rounded-xl border border-red-200 max-w-md mx-auto"><span class="material-symbols-outlined text-red-500 text-3xl mb-1">error</span><p class="text-red-700 font-bold text-sm">Failed to load history</p><p class="text-xs text-red-500 mt-1">${e.message}</p></div>`;
-        }
+        console.warn("loadHistory network fetch error, using local queue fallback:", e);
+        const offlineQueue = JSON.parse(localStorage.getItem('kurunji_offline_bills_queue') || '[]');
+        allTransactions = normalizeAndDeduplicateTransactions(offlineQueue);
+        populateStaffOptions(allTransactions);
+        if (loading) loading.classList.add('hidden');
+        if (container) container.classList.remove('hidden');
+        applyFilters();
     }
 }
 
@@ -263,13 +335,24 @@ function applyFilters() {
         if (timeFilter === 'today') {
             const todayISO = new Date().toLocaleDateString('en-CA');
             const txnDateClean = String(txn.date || '').split('T')[0].trim();
-            if (txnDateClean && txnDateClean !== todayISO && new Date(txn.date).toLocaleDateString('en-US') !== todayStr) {
-                return false;
-            }
+            const txDateObj = new Date(txn.date);
+            const isToday = (txnDateClean === todayISO) || 
+                            (!isNaN(txDateObj.getTime()) && txDateObj.toLocaleDateString('en-CA') === todayISO);
+            if (!isToday) return false;
+        } else if (timeFilter === 'yesterday') {
+            const yDate = new Date();
+            yDate.setDate(yDate.getDate() - 1);
+            const yISO = yDate.toLocaleDateString('en-CA');
+            const txnDateClean = String(txn.date || '').split('T')[0].trim();
+            const txDateObj = new Date(txn.date);
+            const isYesterday = (txnDateClean === yISO) || 
+                                (!isNaN(txDateObj.getTime()) && txDateObj.toLocaleDateString('en-CA') === yISO);
+            if (!isYesterday) return false;
         } else if (timeFilter === 'week') {
             const txDate = new Date(txn.date);
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            sevenDaysAgo.setHours(0,0,0,0);
             if (!isNaN(txDate.getTime()) && txDate < sevenDaysAgo) {
                 return false;
             }
@@ -277,13 +360,28 @@ function applyFilters() {
             const txDate = new Date(txn.date);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            thirtyDaysAgo.setHours(0,0,0,0);
             if (!isNaN(txDate.getTime()) && txDate < thirtyDaysAgo) {
                 return false;
             }
         }
         
         // 3. Staff
-        if (staffFilter === 'me' && currentSession && txn.staff !== currentSession.email) return false;
+        if (staffFilter === 'me' && currentSession) {
+            const myEmail = (currentSession.email || '').toLowerCase().trim();
+            const myName = myEmail.split('@')[0];
+            const txnStaff = (txn.staff || '').toLowerCase().trim();
+            const txnStaffName = txnStaff.split('@')[0];
+            if (txnStaff !== myEmail && txnStaffName !== myName && !txnStaff.includes(myName)) {
+                return false;
+            }
+        } else if (staffFilter && staffFilter !== 'all' && staffFilter !== 'me') {
+            const target = staffFilter.toLowerCase().trim();
+            const txnStaff = (txn.staff || '').toLowerCase().trim();
+            if (txnStaff !== target && !txnStaff.includes(target)) {
+                return false;
+            }
+        }
         
         // 4. Type
         if (!filterAllTypes && !typeFilters.includes(txn.type)) return false;
@@ -497,3 +595,22 @@ let latestFilteredList = [];
 function getCurrentFilteredTransactions() {
     return latestFilteredList.length > 0 ? latestFilteredList : allTransactions;
 }
+
+window.setTimeframeQuickFilter = function(tf) {
+    const timeSelect = document.getElementById('time-filter');
+    if (timeSelect) timeSelect.value = tf;
+
+    const pills = ['all', 'today', 'week', 'month'];
+    pills.forEach(p => {
+        const btn = document.getElementById('pill-time-' + p);
+        if (btn) {
+            if (p === tf) {
+                btn.className = "px-2.5 py-1.5 rounded-lg transition-all bg-white text-primary shadow-sm font-bold";
+            } else {
+                btn.className = "px-2.5 py-1.5 rounded-lg transition-all text-slate-600 hover:text-slate-900 hover:bg-white/50 font-bold";
+            }
+        }
+    });
+
+    applyFilters();
+};

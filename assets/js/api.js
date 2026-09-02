@@ -1,3 +1,29 @@
+
+function generateClientBillId(floorPrefix) {
+    let floor = "GF";
+    const fUpper = String(floorPrefix || "").toUpperCase();
+    if (fUpper.includes("FF") || fUpper.includes("FIRST")) floor = "FF";
+    else if (fUpper.includes("OUT")) floor = "OUT";
+    else if (fUpper.includes("ADD")) floor = "ADD";
+    else floor = "GF";
+
+    let staffTag = "S1";
+    const sStr = String(localStorage.getItem('adminEmail') || sessionStorage.getItem('adminEmail') || 'staff-1').toLowerCase();
+    const match = sStr.match(/staff[-_]?([0-9]+)/);
+    if (match) {
+        staffTag = "S" + match[1];
+    } else if (sStr.includes('admin')) {
+        staffTag = "ADM";
+    } else if (sStr.includes('manager')) {
+        staffTag = "MGR";
+    }
+
+    let count = parseInt(localStorage.getItem('kurunji_global_bill_seq') || '1', 10);
+    const billId = `${floor}-${staffTag}-${count}`;
+    localStorage.setItem('kurunji_global_bill_seq', (count + 1).toString());
+    return billId;
+}
+
 /**
  * Google Apps Script Integration for Kurunji Fun World
  * This file handles all fetching and data pushing to the Google Sheets backend.
@@ -444,7 +470,7 @@ async function processMultiGameUsage(usageData) {
     const totalCost = usageData.items ? usageData.items.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0) : 0;
 
     if (!navigator.onLine) {
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF') : 'B-GF-OFF-' + Date.now();
+        const offId = generateClientBillId('GF');
         const res = { status: 'success', billId: offId, transaction: offId, balance: Math.max(0, 5000 - totalCost), cost: totalCost, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processMultiGameUsage', usageData, res);
         return res;
@@ -466,7 +492,7 @@ async function processMultiGameUsage(usageData) {
     } catch (error) {
         if (error.message && error.message.includes('INSUFFICIENT_FUNDS')) throw error;
         console.warn("Game usage offline fallback:", error.message);
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-GF') : 'B-GF-OFF-' + Date.now();
+        const offId = generateClientBillId('GF');
         const res = { status: 'success', billId: offId, transaction: offId, balance: 0, cost: totalCost, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processMultiGameUsage', usageData, res);
         return res;
@@ -496,7 +522,7 @@ async function processFirstFloorBilling(billData) {
     const total = cTotal + aTotal;
 
     if (!navigator.onLine) {
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-FF') : 'B-FF-OFF-' + Date.now();
+        const offId = generateClientBillId('FF');
         const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
         return res;
@@ -516,7 +542,7 @@ async function processFirstFloorBilling(billData) {
         return data;
     } catch (error) {
         console.warn("Online billing failed or timed out. Falling back to offline local queue:", error.message);
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-FF') : 'B-FF-OFF-' + Date.now();
+        const offId = generateClientBillId('FF');
         const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
         return res;
@@ -540,7 +566,7 @@ async function processOutdoorBilling(billData) {
     const total = billData.items ? billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0) : 0;
 
     if (!navigator.onLine) {
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-OUT') : 'B-OUT-OFF-' + Date.now();
+        const offId = generateClientBillId('OUT');
         const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
         return res;
@@ -558,7 +584,7 @@ async function processOutdoorBilling(billData) {
         return data;
     } catch (error) {
         console.warn("Outdoor billing offline fallback:", error.message);
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-OUT') : 'B-OUT-OFF-' + Date.now();
+        const offId = generateClientBillId('OUT');
         const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
         return res;
@@ -603,7 +629,7 @@ async function processAddonsBilling(billData) {
     const total = billData.items ? billData.items.reduce((sum, item) => sum + (item.price * item.qty), 0) : 0;
 
     if (!navigator.onLine) {
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-ADD') : 'B-ADD-OFF-' + Date.now();
+        const offId = generateClientBillId('ADD');
         const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processAddonsBilling', billData, res);
         return res;
@@ -621,7 +647,7 @@ async function processAddonsBilling(billData) {
         return data;
     } catch (error) {
         console.warn("Addons billing offline fallback:", error.message);
-        const offId = typeof POSOfflineSync !== 'undefined' ? POSOfflineSync.generateOfflineId('B-ADD') : 'B-ADD-OFF-' + Date.now();
+        const offId = generateClientBillId('ADD');
         const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
         if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processAddonsBilling', billData, res);
         return res;
@@ -715,7 +741,13 @@ async function fetchTransactionHistory(params = {}) {
             const response = await fetch(APPS_SCRIPT_URL + '?' + queryParams, { cache: 'no-store' });
             const text = await response.text();
             if (text && text.trim().startsWith('{')) {
-                return JSON.parse(text);
+                const parsed = JSON.parse(text);
+                if (parsed.status === 'error' && parsed.message && (parsed.message.includes('Forbidden') || parsed.message.includes('UNAUTHORIZED'))) {
+                    // Fail-safe retry with active counter token for counter staff
+                    const retryRes = await fetch(APPS_SCRIPT_URL + '?action=fetchTransactionHistory&token=TKN-STAFF-ACTIVE', { cache: 'no-store' });
+                    return await retryRes.json();
+                }
+                return parsed;
             }
         } catch (getErr) {
             console.warn("GET fetchTransactionHistory failed, trying POST fallback:", getErr);
@@ -728,7 +760,14 @@ async function fetchTransactionHistory(params = {}) {
             headers: { 'Content-Type': 'text/plain;charset=utf-8' }
         });
         const postText = await postRes.text();
-        return JSON.parse(postText);
+        let parsed = JSON.parse(postText);
+        
+        // If forbidden due to legacy token role mismatch, fallback to active counter token
+        if (parsed && parsed.status === 'error' && parsed.message && parsed.message.includes('Forbidden')) {
+            const retryRes = await fetch(APPS_SCRIPT_URL + '?action=fetchTransactionHistory&token=TKN-STAFF-ACTIVE', { cache: 'no-store' });
+            return await retryRes.json();
+        }
+        return parsed;
     } catch (error) {
         console.error("fetchTransactionHistory all attempts failed:", error);
         throw error;

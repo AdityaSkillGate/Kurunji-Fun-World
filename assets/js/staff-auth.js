@@ -47,14 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await adminLogin(email, password);
                 
                 if (response && response.status === 'success') {
+                    // Normalize any custom staff role string (e.g. COUNTER_STAFF-1, STAFF-1, CASHIER) to standard COUNTER_STAFF
+                    let roleStr = String(response.role || 'COUNTER_STAFF').toUpperCase().trim();
+                    let normalizedRole = (roleStr.includes('STAFF') || roleStr.includes('COUNTER') || roleStr.includes('CASHIER')) ? 'COUNTER_STAFF' : (roleStr === 'SUPER_ADMIN' || roleStr === 'ADMIN' ? 'SUPER_ADMIN' : 'MANAGER');
+
                     // Set session in both sessionStorage & localStorage
                     sessionStorage.setItem('adminToken', response.token);
-                    sessionStorage.setItem('adminRole', response.role || 'COUNTER_STAFF');
+                    sessionStorage.setItem('adminRole', normalizedRole);
                     sessionStorage.setItem('adminEmail', response.email || email);
                     sessionStorage.setItem('last_auth_validation_time', Date.now().toString());
 
                     localStorage.setItem('adminToken', response.token);
-                    localStorage.setItem('adminRole', response.role || 'COUNTER_STAFF');
+                    localStorage.setItem('adminRole', normalizedRole);
                     localStorage.setItem('adminEmail', response.email || email);
                     
                     // Redirect to POS Dashboard

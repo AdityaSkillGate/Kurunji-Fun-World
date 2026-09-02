@@ -72,9 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
         isLoading = true;
 
         if (!append) {
-            grid.innerHTML = \`<div class="col-span-1 md:col-span-3 text-center py-10">
+            grid.innerHTML = `<div class="col-span-1 md:col-span-3 text-center py-10">
                 <span class="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
-            </div>\`;
+            </div>`;
             if (loadMoreBtn) loadMoreBtn.classList.add("hidden");
         } else {
             const btnText = loadMoreBtn.innerText;
@@ -97,19 +97,19 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (result.reviews.length === 0 && !append) {
-                grid.innerHTML = \`<div class="col-span-1 md:col-span-3 text-center py-10 text-on-surface-variant bg-white rounded-3xl border border-outline-variant/20 shadow-sm">
+                grid.innerHTML = `<div class="col-span-1 md:col-span-3 text-center py-10 text-on-surface-variant bg-white rounded-3xl border border-outline-variant/20 shadow-sm">
                     <span class="material-symbols-outlined text-5xl mb-3 opacity-50">search_off</span>
                     <h3 class="font-bold text-xl mb-2">No reviews found</h3>
                     <p>Try adjusting your filters or search terms.</p>
-                </div>\`;
+                </div>`;
             } else {
                 result.reviews.forEach(review => {
                     const stars = Array(5).fill(0).map((_, i) => 
-                        \`<span class="material-symbols-outlined text-lg \${i < review.rating ? 'text-tertiary' : 'text-outline-variant/30'}" style="font-variation-settings: 'FILL' \${i < review.rating ? 1 : 0}">star</span>\`
+                        `<span class="material-symbols-outlined text-lg ${i < review.rating ? 'text-tertiary' : 'text-outline-variant/30'}" style="font-variation-settings: 'FILL' ${i < review.rating ? 1 : 0}">star</span>`
                     ).join('');
 
                     const verifiedBadge = review.verified ? 
-                        \`<span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 uppercase tracking-wider"><span class="material-symbols-outlined text-[12px]">verified</span> Verified</span>\` : '';
+                        `<span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 uppercase tracking-wider"><span class="material-symbols-outlined text-[12px]">verified</span> Verified</span>` : '';
 
                     let colorClass = "bg-primary-container";
                     if(review.type === "Tourist") colorClass = "bg-secondary-container";
@@ -117,25 +117,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const avatarLetter = review.name.charAt(0).toUpperCase();
 
-                    const html = \`
+                    const html = `
                         <div class="bg-white p-8 rounded-3xl shadow-sm border border-outline-variant/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300 flex flex-col h-full animate-fade-in">
                             <div class="flex justify-between items-start mb-6">
-                                <div class="flex gap-1">\${stars}</div>
-                                \${verifiedBadge}
+                                <div class="flex gap-1">${stars}</div>
+                                ${verifiedBadge}
                             </div>
-                            <p class="font-body-lg text-on-surface-variant italic mb-8 flex-grow">"\${review.text}"</p>
+                            <p class="font-body-lg text-on-surface-variant italic mb-8 flex-grow">"${review.text}"</p>
                             <div class="flex items-center justify-between border-t border-outline-variant/20 pt-6">
                                 <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 rounded-full \${colorClass} flex items-center justify-center text-white font-bold">\${avatarLetter}</div>
+                                    <div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center text-white font-bold">${avatarLetter}</div>
                                     <div>
-                                        <h5 class="font-bold text-on-surface text-sm">\${review.name}</h5>
-                                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">\${review.type} • \${review.hours} Hrs</p>
+                                        <h5 class="font-bold text-on-surface text-sm">${review.name}</h5>
+                                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">${review.type} • ${review.hours} Hrs</p>
                                     </div>
                                 </div>
-                                <div class="text-[10px] text-outline-variant font-bold uppercase tracking-wider">\${review.source || 'Website'}</div>
+                                <div class="text-[10px] text-outline-variant font-bold uppercase tracking-wider">${review.source || 'Website'}</div>
                             </div>
                         </div>
-                    \`;
+                    `;
                     grid.insertAdjacentHTML("beforeend", html);
                 });
             }
@@ -151,9 +151,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) {
             console.error(e);
             if (!append) {
-                grid.innerHTML = \`<div class="col-span-1 md:col-span-3 text-center py-10 text-error">
+                grid.innerHTML = `<div class="col-span-1 md:col-span-3 text-center py-10 text-error">
                     Failed to load reviews. Please try again later.
-                </div>\`;
+                </div>`;
             }
         } finally {
             isLoading = false;

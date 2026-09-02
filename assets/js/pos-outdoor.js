@@ -71,64 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Coupon Apply
     const applyBtn = document.getElementById('apply-coupon-btn');
     if (applyBtn) {
-        applyBtn.addEventListener('click', async () => {
-            const codeInput = document.getElementById('coupon-code');
-            const msgBox = document.getElementById('coupon-msg');
-            const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
-            
-            if (!code) {
-                if (msgBox) {
-                    msgBox.textContent = "Enter a code";
-                    msgBox.className = "text-xs font-bold mt-1 text-red-600";
-                    msgBox.classList.remove('hidden');
-                }
-                appliedCoupon = null;
-                appliedDiscount = 0;
-                appliedBonus = 0;
-                updateCartUI();
-                return;
-            }
-            
-            if (msgBox) {
-                msgBox.textContent = "Checking...";
-                msgBox.className = "text-xs font-bold mt-1 text-slate-500";
-                msgBox.classList.remove('hidden');
-            }
-            
-            const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
-            try {
-                const res = await validateCoupon(code, subtotal, "OUTDOOR", "ALL", "", false);
-                if (res && res.status === 'success' && res.coupon && res.coupon.valid) {
-                    appliedCoupon = res.coupon;
-                    appliedDiscount = res.coupon.discount || 0;
-                    appliedBonus = res.coupon.bonusPoints || 0;
-                    
-                    let msg = "Applied!";
-                    if (appliedDiscount > 0) msg += ` -₹${appliedDiscount}`;
-                    if (appliedBonus > 0) msg += ` +${appliedBonus} pts`;
-                    
-                    if (msgBox) {
-                        msgBox.textContent = msg;
-                        msgBox.className = "text-xs font-bold mt-1 text-green-600";
-                    }
-                } else {
-                    appliedCoupon = null;
-                    appliedDiscount = 0;
-                    appliedBonus = 0;
-                    if (msgBox) {
-                        msgBox.textContent = res ? res.message || "Invalid coupon" : "Invalid coupon";
-                        msgBox.className = "text-xs font-bold mt-1 text-red-600";
-                    }
-                }
-                updateCartUI();
-            } catch (e) {
-                if (msgBox) {
-                    msgBox.textContent = "Error validating";
-                    msgBox.className = "text-xs font-bold mt-1 text-red-600";
-                }
-            }
-        });
+        applyBtn.addEventListener('click', applyCoupon);
     }
+
 
     // Customer Lookup
     const phoneInput = document.getElementById('cust-phone');
@@ -510,7 +455,10 @@ async function executeOrder() {
             errBox.classList.remove('hidden');
         }
         if (btn) btn.disabled = false;
-        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = `<span>Confirm &amp; Bill</span> <span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>`;
+        }
     } finally {
         if (spinner) {
             spinner.classList.add('hidden');
@@ -581,7 +529,79 @@ function showReceipt(response, paymentMethod, totalAdults = 1, totalChildren = 0
     if (modal) modal.classList.remove('hidden');
 }
 
+async function applyCoupon() {
+    const codeInput = document.getElementById('coupon-code');
+    const msgBox = document.getElementById('coupon-msg');
+    const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
+    
+    if (!code) {
+        if (msgBox) {
+            msgBox.textContent = "Enter a code";
+            msgBox.className = "text-xs font-bold mt-1 text-red-600";
+            msgBox.classList.remove('hidden');
+        }
+        appliedCoupon = null;
+        appliedDiscount = 0;
+        appliedBonus = 0;
+        updateCartUI();
+        return;
+    }
+    
+    if (msgBox) {
+        msgBox.textContent = "Checking...";
+        msgBox.className = "text-xs font-bold mt-1 text-slate-500";
+        msgBox.classList.remove('hidden');
+    }
+    
+    const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+    try {
+        const res = await validateCoupon(code, subtotal, "OUTDOOR", "ALL", "", false);
+        if (res && res.status === 'success' && res.coupon && res.coupon.valid) {
+            appliedCoupon = res.coupon;
+            appliedDiscount = res.coupon.discount || 0;
+            appliedBonus = res.coupon.bonusPoints || 0;
+            
+            let msg = "Applied!";
+            if (appliedDiscount > 0) msg += ` -₹${appliedDiscount}`;
+            if (appliedBonus > 0) msg += ` +${appliedBonus} pts`;
+            
+            if (msgBox) {
+                msgBox.textContent = msg;
+                msgBox.className = "text-xs font-bold mt-1 text-green-600";
+            }
+        } else {
+            appliedCoupon = null;
+            appliedDiscount = 0;
+            appliedBonus = 0;
+            if (msgBox) {
+                msgBox.textContent = res ? res.message || "Invalid coupon" : "Invalid coupon";
+                msgBox.className = "text-xs font-bold mt-1 text-red-600";
+            }
+        }
+        updateCartUI();
+    } catch (e) {
+        if (msgBox) {
+            msgBox.textContent = "Error validating";
+            msgBox.className = "text-xs font-bold mt-1 text-red-600";
+        }
+    }
+}
+
 window.closeReceiptModal = function() {
     const modal = document.getElementById('receipt-modal');
     if (modal) modal.classList.add('hidden');
 };
+
+
+
+window.executeOrder = executeOrder;
+
+// Global window exports for HTML onclick handlers
+window.processBilling = processBilling;
+window.handleOutdoorSubmit = processBilling;
+window.executeOrder = executeOrder;
+window.openQtyModal = openQtyModal;
+window.updateModalQty = updateModalQty;
+window.confirmAddToCard = confirmAddToCard;
+window.removeFromCart = removeFromCart;
+window.applyCoupon = applyCoupon;

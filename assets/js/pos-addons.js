@@ -399,7 +399,10 @@ async function executeOrder() {
             errBox.classList.remove('hidden');
         }
         if (btn) btn.disabled = false;
-        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = `<span>Confirm &amp; Bill</span> <span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>`;
+        }
     } finally {
         if (spinner) {
             spinner.classList.add('hidden');

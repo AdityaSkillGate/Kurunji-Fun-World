@@ -142,34 +142,36 @@ const POSShare = {
     formatBillForOwner(billData) {
         const d = billData || this.getActiveReceiptData();
         
+        // Resolve Floor Name cleanly
+        let floorName = "Ground Floor (Card Recharge)";
+        const bId = String(d.billId || "").toUpperCase();
+        if (bId.startsWith("FF-") || bId.startsWith("B-FF")) {
+            floorName = "First Floor (Access Pass)";
+        } else if (bId.startsWith("OUT-") || bId.startsWith("B-OUT")) {
+            floorName = "Outdoor Zone (Rides)";
+        } else if (bId.startsWith("ADD-") || bId.startsWith("B-ADD")) {
+            floorName = "Add-ons";
+        } else if (bId.startsWith("USE-") || bId.startsWith("B-GF-USE")) {
+            floorName = "Ground Floor (Game Usage)";
+        } else if (d.floor) {
+            floorName = d.floor;
+        }
+
+        const staffName = d.staff ? (d.staff.includes('@') ? d.staff.split('@')[0] : d.staff) : 'staff-1';
+        const totalFormatted = String(d.total || '₹0').startsWith('₹') ? d.total : ('₹' + d.total);
+        const adultCount = parseInt(d.adultCount, 10) || 0;
+        const childCount = parseInt(d.childCount, 10) || 0;
+
         let msg = `📊 *KURUNJI FUN WORLD — NEW BILL NOTIFICATION*\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
         msg += `🧾 *Bill No:* ${d.billId}\n`;
         msg += `📅 *Date & Time:* ${d.date}\n`;
-        msg += `👤 *Customer:* ${d.customerName}\n`;
-        if (d.customerPhone) msg += `📱 *Mobile:* +91 ${d.customerPhone}\n`;
-        if (d.card) msg += `💳 *Card No:* ${d.card}\n`;
-        if (d.adultCount > 0 || d.childCount > 0) {
-            msg += `👥 *Visitors:* ${d.adultCount} Adult(s), ${d.childCount} Child(ren)\n`;
-        }
-        msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
-
-        if (d.items && d.items.length > 0) {
-            msg += `🎡 *PARTICULARS:*\n`;
-            d.items.forEach(item => {
-                msg += `• ${item}\n`;
-            });
-            msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
-        }
-
-        if (d.addedPoints) msg += `● *Points Added:* ${d.addedPoints}\n`;
-        if (d.balance) msg += `💰 *Card Balance:* ${d.balance}\n`;
-        msg += `💵 *TOTAL COLLECTED:* *${d.total}*\n`;
-        msg += `💳 *Payment Mode:* ${d.mode}\n`;
-        msg += `👤 *Billed By:* ${d.staff ? d.staff.split('@')[0] : 'Staff'}\n`;
-        msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
-        msg += `📍 *Location:* ${PARK_LOCATION_ADDRESS}\n`;
-        msg += `_Official Staff POS Billing Record_`;
+        msg += `💳 *Floor Name:* ${floorName}\n`;
+        msg += `👥 *Visitors:* ${adultCount} Adult(s), ${childCount} Child(ren)\n`;
+        msg += `💵 *TOTAL COLLECTED:* *${totalFormatted}*\n`;
+        msg += `💳 *Payment Mode:* ${d.mode || 'Cash'}\n`;
+        msg += `👤 *Billed By:* ${staffName}\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━━`;
 
         return msg;
     },
@@ -345,49 +347,54 @@ const POSShare = {
             ctx.fillText("Balance: " + d.balance, width - 24, y);
         }
 
-        // QR Code Drawing
-        y += 18;
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 2]);
-        ctx.beginPath();
-        ctx.moveTo(20, y);
-        ctx.lineTo(width - 20, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        // QR Code Drawing - ONLY for First Floor (B-FF) and Outdoor (B-OUT)
+        // Ground Floor bills use RFID Smart Cards and DO NOT require QR codes
+        const isEntryTicket = (d.billId && (d.billId.startsWith("FF-") || d.billId.startsWith("OUT-") || d.billId.startsWith("B-FF") || d.billId.startsWith("B-OUT")));
 
-        y += 14;
-        try {
-            // Load QR Code Image
-            const qrImg = new Image();
-            qrImg.crossOrigin = "anonymous";
-            
-            // Check if there's already an active QR image on page
-            const domQr = document.getElementById('receipt-qr');
-            if (domQr && domQr.src && domQr.src.startsWith('data:image')) {
-                qrImg.src = domQr.src;
-            } else {
-                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(d.billId)}`;
+        if (isEntryTicket) {
+            y += 18;
+            ctx.strokeStyle = "#e2e8f0";
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(20, y);
+            ctx.lineTo(width - 20, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            y += 14;
+            try {
+                // Load QR Code Image
+                const qrImg = new Image();
+                qrImg.crossOrigin = "anonymous";
+                
+                // Check if there's already an active QR image on page
+                const domQr = document.getElementById('receipt-qr');
+                if (domQr && domQr.src && domQr.src.startsWith('data:image')) {
+                    qrImg.src = domQr.src;
+                } else {
+                    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(d.billId)}`;
+                }
+
+                await new Promise((resolve) => {
+                    qrImg.onload = resolve;
+                    qrImg.onerror = resolve;
+                    setTimeout(resolve, 1500);
+                });
+
+                if (qrImg.complete && qrImg.naturalWidth > 0) {
+                    const qrSize = 90;
+                    ctx.drawImage(qrImg, (width - qrSize) / 2, y, qrSize, qrSize);
+                    y += qrSize + 10;
+                    ctx.fillStyle = "#64748b";
+                    ctx.font = "bold 9px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("SCAN QR FOR CHECK-IN / VERIFICATION", width / 2, y);
+                    y += 14;
+                }
+            } catch (e) {
+                console.warn("QR code canvas render fallback:", e);
             }
-
-            await new Promise((resolve) => {
-                qrImg.onload = resolve;
-                qrImg.onerror = resolve; // Graceful fallback
-                setTimeout(resolve, 1500); // 1.5s timeout safety
-            });
-
-            if (qrImg.complete && qrImg.naturalWidth > 0) {
-                const qrSize = 90;
-                ctx.drawImage(qrImg, (width - qrSize) / 2, y, qrSize, qrSize);
-                y += qrSize + 10;
-                ctx.fillStyle = "#64748b";
-                ctx.font = "bold 9px sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText("SCAN QR FOR CHECK-IN / VERIFICATION", width / 2, y);
-                y += 14;
-            }
-        } catch (e) {
-            console.warn("QR code canvas render fallback:", e);
         }
 
         // Footer
@@ -437,7 +444,7 @@ const POSShare = {
         const modalHtml = `
         <div id="bill-share-dialog" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
-                <div style="background-color: #059669; color: #ffffff;" class="px-4 py-3.5 flex items-center justify-between shadow-md">
+                <div style="background-color: #22c55e; color: #ffffff;" class="px-4 py-3.5 flex items-center justify-between shadow-md">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-xl">chat</span>
                         <h3 class="font-bold text-sm sm:text-base">Share Bill on WhatsApp</h3>
@@ -447,7 +454,7 @@ const POSShare = {
                     </button>
                 </div>
 
-                <div class="p-4 space-y-3.5 text-xs sm:text-sm">
+                <div style class="p-4 space-y-3.5 text-xs sm:text-sm">
                     <div>
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Customer Mobile Number</label>
                         <div class="flex">
@@ -457,6 +464,12 @@ const POSShare = {
                     </div>
 
                     <div class="space-y-2 pt-1">
+
+                        <button type="button" id="share-owner-wa-btn" style="margin-top: 15px; background-color: #fef3c7; color: #78350f; border: 1px solid #fcd34d;" class="w-full hover:bg-amber-100 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                            <span class="material-symbols-outlined text-lg text-amber-600">verified_user</span>
+                            <span>Send to Owner (+91 97511 82000)</span>
+                        </button>
+                        
                         <button type="button" id="share-text-wa-btn" style="background-color: #059669; color: #ffffff;" class="w-full hover:bg-emerald-700 font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow transition-colors">
                             <span class="material-symbols-outlined text-lg">chat</span>
                             <span>Share Formatted Text Bill (Customer)</span>
@@ -465,11 +478,6 @@ const POSShare = {
                         <button type="button" id="share-img-wa-btn" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 border border-slate-300 transition-colors">
                             <span class="material-symbols-outlined text-lg text-emerald-600">image</span>
                             <span>Download &amp; Share Image Bill (with QR)</span>
-                        </button>
-
-                        <button type="button" id="share-owner-wa-btn" style="background-color: #fef3c7; color: #78350f; border: 1px solid #fcd34d;" class="w-full hover:bg-amber-100 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                            <span class="material-symbols-outlined text-lg text-amber-600">verified_user</span>
-                            <span>Send to Owner (+91 97511 82000)</span>
                         </button>
                     </div>
                 </div>

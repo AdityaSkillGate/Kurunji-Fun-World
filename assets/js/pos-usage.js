@@ -449,3 +449,10 @@ function showResultModal(isSuccess, data) {
     
     modal.classList.remove('hidden');
 }
+
+// Global window exports
+window.handleUsageSubmit = handleUsageSubmit;
+window.executeUsage = executeUsage;
+window.addToCart = addToCart;
+window.updateCartQty = updateCartQty;
+window.removeFromCart = removeFromCart;

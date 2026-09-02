@@ -275,6 +275,7 @@ async function executeOrder() {
     const btn = document.getElementById('review-confirm-btn');
     const completeBtn = document.getElementById('complete-btn');
     const spinner = document.getElementById('processing-spinner');
+    const reviewSpinner = document.getElementById('review-spinner');
     
     const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
     const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
@@ -282,9 +283,13 @@ async function executeOrder() {
     const phone = document.getElementById('cust-phone') ? document.getElementById('cust-phone').value.trim() : "";
     const couponCode = document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "";
     
-    if (btn) btn.disabled = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>Processing Bill...</span> <span class="material-symbols-outlined text-base animate-spin">progress_activity</span>`;
+    }
     if (completeBtn) completeBtn.disabled = true;
     if (spinner) { spinner.classList.remove('hidden'); spinner.classList.add('animate-spin'); }
+    if (reviewSpinner) { reviewSpinner.classList.remove('hidden'); }
     
     try {
         const payload = {
@@ -311,7 +316,10 @@ async function executeOrder() {
             errBox.textContent = e.message;
             errBox.classList.remove('hidden');
         }
-        if (btn) btn.disabled = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Confirm &amp; Bill</span> <span class="material-symbols-outlined text-base animate-spin hidden" id="review-spinner">progress_activity</span>`;
+        }
         if (completeBtn) completeBtn.disabled = false;
     } finally {
         if (spinner) {
@@ -347,6 +355,9 @@ function showReceipt(response, mode) {
     if (childRow) childRow.style.display = childQty > 0 ? 'flex' : 'none';
     if (adultRow) adultRow.style.display = adultQty > 0 ? 'flex' : 'none';
     
+    const qrContainer = document.getElementById('qr-container');
+    if (qrContainer) qrContainer.classList.remove('hidden');
+
     const qrImg = document.getElementById('receipt-qr');
     if (qrImg) {
         const qrData = response.billId || 'B-FF-' + Date.now();
@@ -361,3 +372,10 @@ window.closeReceiptModal = function() {
     const modal = document.getElementById('receipt-modal');
     if (modal) modal.classList.add('hidden');
 };
+
+
+// Expose globally for HTML onclick handlers
+window.handleBillingSubmit = handleBillingSubmit;
+window.executeOrder = executeOrder;
+window.updateQty = updateQty;
+window.applyCoupon = applyCoupon;
