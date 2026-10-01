@@ -1,6 +1,16 @@
 ﻿<!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
+    <link rel="icon" type="image/png" href="assets/images/favicon.png">
+    <!-- Instant Pre-Render Staff Auth Security Guard -->
+    <script>
+      (function() {
+        var token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
+        if (!token) {
+          window.location.replace('staff-login.html');
+        }
+      })();
+    </script>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
     <title>QR Check-in | Kurunji Fun World Billing</title>
@@ -91,9 +101,9 @@
         </div>
     </main>
 
-    <script src="assets/js/api.js?v=15"></script>
-    <script src="assets/js/staff-auth.js?v=15"></script>
-    <script src="assets/js/pos-checkin.js?v=15"></script>
+    <script src="assets/js/api.js?v=20"></script>
+    <script src="assets/js/staff-auth.js?v=20"></script>
+    <script src="assets/js/pos-checkin.js?v=20"></script>
   </body>
 </html>
 
