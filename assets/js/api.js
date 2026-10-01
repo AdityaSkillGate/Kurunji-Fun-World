@@ -517,9 +517,12 @@ async function fetchFirstFloorPricing() {
 }
 
 async function processFirstFloorBilling(billData) {
-    const cTotal = (billData.childQty || 0) * 599;
-    const aTotal = (billData.adultQty || 0) * 899;
-    const total = cTotal + aTotal;
+    const cPrice = (billData.childPrice !== undefined && !isNaN(parseFloat(billData.childPrice))) ? parseFloat(billData.childPrice) : 599;
+    const aPrice = (billData.adultPrice !== undefined && !isNaN(parseFloat(billData.adultPrice))) ? parseFloat(billData.adultPrice) : 899;
+    const cTotal = (billData.childQty || 0) * cPrice;
+    const aTotal = (billData.adultQty || 0) * aPrice;
+    const discount = parseFloat(billData.discount) || 0;
+    const total = Math.max(0, (cTotal + aTotal) - discount);
 
     if (!navigator.onLine) {
         const offId = generateClientBillId('FF');
@@ -530,7 +533,9 @@ async function processFirstFloorBilling(billData) {
 
     try {
         billData.token = getAuthToken();
-        // 6s timeout for instant UX
+        billData.childPrice = cPrice;
+        billData.adultPrice = aPrice;
+        billData.total = total;
 
         const response = await fetch(APPS_SCRIPT_URL + '?action=processFirstFloorBilling', {
             method: 'POST',
@@ -541,11 +546,14 @@ async function processFirstFloorBilling(billData) {
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        console.warn("Online billing failed or timed out. Falling back to offline local queue:", error.message);
-        const offId = generateClientBillId('FF');
-        const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
-        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
-        return res;
+        console.warn("Online billing error:", error.message);
+        if (!navigator.onLine) {
+            const offId = generateClientBillId('FF');
+            const res = { status: 'success', billId: offId, total: total, childTotal: cTotal, adultTotal: aTotal, offline: true };
+            if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processFirstFloorBilling', billData, res);
+            return res;
+        }
+        throw error;
     }
 }
 
@@ -583,11 +591,14 @@ async function processOutdoorBilling(billData) {
         if(data.status === 'error') throw new Error(data.message);
         return data;
     } catch (error) {
-        console.warn("Outdoor billing offline fallback:", error.message);
-        const offId = generateClientBillId('OUT');
-        const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
-        if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
-        return res;
+        console.warn("Outdoor billing error:", error.message);
+        if (!navigator.onLine) {
+            const offId = generateClientBillId('OUT');
+            const res = { status: 'success', billId: offId, total: total, items: billData.items, offline: true };
+            if (typeof POSOfflineSync !== 'undefined') POSOfflineSync.enqueue('processOutdoorBilling', billData, res);
+            return res;
+        }
+        throw error;
     }
 }
 
@@ -840,7 +851,7 @@ async function fetchAdminAnalytics(startDate, endDate) {
                 discounts: { total: 2500, coupons: 5 },
                 refunds: { total: 1200 },
                 games: { 
-                    gf: { 'VR 360': 45, 'Boxer': 20 }, 
+                    gf: { 'VR 360°': 45, 'Boxer': 20 }, 
                     ff: { 'Child Pass': 250, 'Adult Pass': 200 }, 
                     out: { 'Bull Ride': 60, 'MeltDown': 40 }, 
                     vrPlays: 50 
@@ -866,7 +877,7 @@ async function fetchPointAnalytics(startDate, endDate) {
                 pointsConsumed: 32000, pointsRemaining: 120000,
                 numberOfCards: 800, avgRecharge: 500,
                 games: {
-                    'VR 360': { plays: 45, pointsConsumed: 9000, configuredRate: 200 },
+                    'VR 360°': { plays: 45, pointsConsumed: 9000, configuredRate: 200 },
                     'Boxer': { plays: 20, pointsConsumed: 2000, configuredRate: 100 },
                     'Human Gyro': { plays: 10, pointsConsumed: 1500, configuredRate: 150 }
                 }
@@ -931,7 +942,7 @@ async function fetchWalletHistory(query) {
         return new Promise(resolve => setTimeout(() => {
             resolve({ status: 'success', wallet: { cardNumber: 'C-123', balance: 5500 }, customer: { name: 'John Doe', phone: '9876543210' }, history: [
                 { type: 'USAGE', description: 'Boxer', pointsDebited: 100, balanceAfter: 5500, timestamp: new Date().toISOString() },
-                { type: 'USAGE', description: 'VR 360', pointsDebited: 400, balanceAfter: 5600, timestamp: new Date().toISOString() },
+                { type: 'USAGE', description: 'VR 360°', pointsDebited: 400, balanceAfter: 5600, timestamp: new Date().toISOString() },
                 { type: 'RECHARGE', description: 'Recharge', moneyPaid: 3000, pointsCredited: 6000, balanceAfter: 6000, timestamp: new Date().toISOString() }
             ] });
         }, 800));

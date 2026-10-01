@@ -322,8 +322,12 @@ function handleRechargeSubmit() {
     if (rm) rm.classList.remove('hidden');
 }
 
+let isRechargeSubmitting = false;
+
 async function executeOrder() {
+    if (isRechargeSubmitting) return;
     if (!selectedPackage) return;
+    isRechargeSubmitting = true;
     
     const errBox = document.getElementById('error-msg');
     if (errBox) errBox.classList.add('hidden');
@@ -394,6 +398,7 @@ async function executeOrder() {
             spinner.classList.add('hidden');
             spinner.classList.remove('animate-spin');
         }
+        setTimeout(() => { isRechargeSubmitting = false; }, 1500);
     }
 }
 

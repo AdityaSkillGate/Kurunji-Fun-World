@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 2. Filter Categories
-    const categories = ['All', 'Indoor', 'Outdoor', 'VR', 'Ground Floor', 'First Floor', 'Videos', '360'];
+    const categories = ['All', 'Indoor', 'Outdoor', 'VR', 'Ground Floor', 'First Floor', 'Videos', '360°'];
     let activeCategory = 'All';
     let filteredData = [...mediaItems];
     let currentImageIndex = 0;
@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredData = mediaItems.filter(item => {
             if (activeCategory === 'All') return true;
             if (activeCategory === 'Videos') return item.type === 'video';
-            if (activeCategory === '360') return item.attraction.slug === 'vr-360' || (item.attraction.panorama && item.attraction.panorama !== "");
+            if (activeCategory === '360°') return item.attraction.slug === 'vr-360°' || (item.attraction.panorama && item.attraction.panorama !== "");
             if (activeCategory === 'Indoor') return item.attraction.type === 'indoor';
             if (activeCategory === 'Outdoor') return item.attraction.type === 'outdoor';
             if (activeCategory === 'VR') return item.attraction.type === 'vr';
@@ -132,10 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.appendChild(overlay);
 
             // Badges
-            if (item.attraction.slug === 'vr-360') {
+            if (item.attraction.slug === 'vr-360°') {
                 const badge = document.createElement('div');
                 badge.className = 'absolute top-3 right-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 border border-white/20 z-10 pointer-events-none shadow-sm';
-                badge.innerHTML = '<span class="material-symbols-outlined text-[12px] text-white">360</span><span class="text-[8px] font-bold text-white uppercase tracking-wider">360°</span>';
+                badge.innerHTML = '<span class="material-symbols-outlined text-[12px] text-white">360°</span><span class="text-[8px] font-bold text-white uppercase tracking-wider">360°</span>';
                 wrapper.appendChild(badge);
             }
 
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             exploreBtn.href = `attraction.html?slug=${item.attraction.slug}`;
         }
         
-        // 360 Button
+        // 360° Button
         if (view360Btn) {
             if (item.attraction.slug === 'vr-360' || item.attraction.panorama) {
                 view360Btn.classList.remove('hidden');

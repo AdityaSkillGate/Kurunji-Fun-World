@@ -96,10 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function requireStaffAuth() {
     let token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken');
     let role = sessionStorage.getItem('adminRole') || localStorage.getItem('adminRole') || 'COUNTER_STAFF';
-    let email = sessionStorage.getItem('adminEmail') || localStorage.getItem('adminEmail') || 'staff@exmail.com';
+    let email = sessionStorage.getItem('adminEmail') || localStorage.getItem('adminEmail') || '';
 
-    if (!token) {
-        window.location.href = 'staff-login.html';
+    if (!token || !email) {
+        sessionStorage.clear();
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminRole');
+        localStorage.removeItem('adminEmail');
+        window.location.replace('staff-login.html');
         return null;
     }
 

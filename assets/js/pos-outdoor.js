@@ -1,3 +1,24 @@
+
+function onModalPriceChange() {
+    const customPriceInput = document.getElementById('modal-custom-price');
+    if (customPriceInput) {
+        const val = parseFloat(customPriceInput.value);
+        pendingPrice = (!isNaN(val) && val >= 0) ? val : defaultRidePrice;
+    }
+    updateModalTotalsPreview();
+}
+
+function resetModalDefaultPrice() {
+    pendingPrice = defaultRidePrice;
+    const customPriceInput = document.getElementById('modal-custom-price');
+    if (customPriceInput) customPriceInput.value = defaultRidePrice;
+    updateModalTotalsPreview();
+}
+
+window.onModalPriceChange = onModalPriceChange;
+window.resetModalDefaultPrice = resetModalDefaultPrice;
+
+
 /**
  * assets/js/pos-outdoor.js
  * Outdoor POS Single-Page Billing with Item-Level Adult & Child Member Selection
@@ -50,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (reviewBtn) reviewBtn.addEventListener('click', processBilling);
 
     const reviewConfirm = document.getElementById('review-confirm-btn');
-    if (reviewConfirm) reviewConfirm.addEventListener('click', executeOrder);
+    // if (reviewConfirm) reviewConfirm.addEventListener('click', executeOrder); // handled inline
 
     const reviewCancel = document.getElementById('review-cancel-btn');
     if (reviewCancel) {
@@ -146,21 +167,30 @@ async function loadAttractions() {
     }
 }
 
+let defaultRidePrice = 200;
+
 /**
  * Open Modal to choose Adult & Child Tickets for this specific ride
  */
 function openQtyModal(attr, price) {
+    const ridePrice = parseFloat(price) || parseFloat(attr.Price) || parseFloat(attr.price) || 200;
+    defaultRidePrice = ridePrice;
+    pendingPrice = ridePrice;
+
     pendingAttraction = {
-        id: attr.AttractionID,
-        name: attr.Name,
-        price: price
+        id: attr.AttractionID || attr.id,
+        name: attr.Name || attr.name,
+        price: ridePrice
     };
     
     // Check if this ride is already in cart to prefill
-    const existing = cart.find(item => item.id === attr.AttractionID);
+    const existing = cart.find(item => item.id === (attr.AttractionID || attr.id));
     if (existing) {
         pendingAdultQty = existing.adultQty || 0;
         pendingChildQty = existing.childQty || 0;
+        if (existing.price !== undefined) {
+            pendingPrice = parseFloat(existing.price);
+        }
     } else {
         pendingAdultQty = 1;
         pendingChildQty = 0;
@@ -172,14 +202,16 @@ function openQtyModal(attr, price) {
     const childRateEl = document.getElementById('modal-child-rate');
     const adultInput = document.getElementById('modal-adult-input');
     const childInput = document.getElementById('modal-child-input');
+    const customPriceInput = document.getElementById('modal-custom-price');
     const qm = document.getElementById('qty-modal');
     
-    if (titleEl) titleEl.textContent = attr.Name;
-    if (priceEl) priceEl.textContent = `₹${price} / visitor`;
-    if (adultRateEl) adultRateEl.textContent = `₹${price} each`;
-    if (childRateEl) childRateEl.textContent = `₹${price} each`;
+    if (titleEl) titleEl.textContent = attr.Name || attr.name;
+    if (priceEl) priceEl.textContent = `₹${pendingPrice} / visitor`;
+    if (adultRateEl) adultRateEl.textContent = `₹${pendingPrice} each`;
+    if (childRateEl) childRateEl.textContent = `₹${pendingPrice} each`;
     if (adultInput) adultInput.value = pendingAdultQty;
     if (childInput) childInput.value = pendingChildQty;
+    if (customPriceInput) customPriceInput.value = pendingPrice;
     
     updateModalTotalsPreview();
     if (qm) qm.classList.remove('hidden');
@@ -210,11 +242,18 @@ function updateModalQty(type, delta) {
 function updateModalTotalsPreview() {
     if (!pendingAttraction) return;
     const totalTickets = pendingAdultQty + pendingChildQty;
-    const subtotal = totalTickets * pendingAttraction.price;
+    const subtotal = totalTickets * pendingPrice;
     
     const ticketsEl = document.getElementById('modal-total-tickets');
     const subtotalEl = document.getElementById('modal-subtotal-price');
     const addBtn = document.getElementById('modal-qty-add');
+    const adultRateEl = document.getElementById('modal-adult-rate');
+    const childRateEl = document.getElementById('modal-child-rate');
+    const priceEl = document.getElementById('qty-modal-price');
+
+    if (priceEl) priceEl.textContent = `₹${pendingPrice} / visitor`;
+    if (adultRateEl) adultRateEl.textContent = `₹${pendingPrice} each`;
+    if (childRateEl) childRateEl.textContent = `₹${pendingPrice} each`;
     
     if (ticketsEl) ticketsEl.textContent = `${totalTickets} ticket${totalTickets === 1 ? '' : 's'} (${pendingAdultQty}A / ${pendingChildQty}C)`;
     if (subtotalEl) subtotalEl.textContent = `₹${subtotal}`;
@@ -231,29 +270,30 @@ function updateModalTotalsPreview() {
 }
 
 /**
- * Add / Update the selected ride in Cart with adult/child breakdown
+ * Add / Update the selected ride in Cart with custom price & adult/child breakdown
  */
 function confirmAddToCard() {
     if (!pendingAttraction) return;
     const totalTickets = pendingAdultQty + pendingChildQty;
     if (totalTickets <= 0) return;
     
+    const lineTotal = totalTickets * pendingPrice;
+    const itemData = {
+        id: pendingAttraction.id,
+        name: pendingAttraction.name,
+        price: pendingPrice,
+        defaultPrice: defaultRidePrice,
+        adultQty: pendingAdultQty,
+        childQty: pendingChildQty,
+        qty: totalTickets,
+        total: lineTotal
+    };
+
     const existingIdx = cart.findIndex(item => item.id === pendingAttraction.id);
     if (existingIdx >= 0) {
-        cart[existingIdx].adultQty = pendingAdultQty;
-        cart[existingIdx].childQty = pendingChildQty;
-        cart[existingIdx].qty = totalTickets;
-        cart[existingIdx].total = totalTickets * pendingAttraction.price;
+        cart[existingIdx] = itemData;
     } else {
-        cart.push({
-            id: pendingAttraction.id,
-            name: pendingAttraction.name,
-            price: pendingAttraction.price,
-            adultQty: pendingAdultQty,
-            childQty: pendingChildQty,
-            qty: totalTickets,
-            total: totalTickets * pendingAttraction.price
-        });
+        cart.push(itemData);
     }
     
     const qm = document.getElementById('qty-modal');
@@ -303,12 +343,14 @@ function updateCartUI() {
             if (item.childQty > 0) breakdownParts.push(`${item.childQty} Child${item.childQty > 1 ? 'ren' : ''}`);
             const breakdownStr = breakdownParts.join(', ');
 
+            const safeName = String(item.name || item.id || 'Attraction').replace(/'/g, "\\'");
+
             if (container) {
                 const div = document.createElement('div');
                 div.className = "bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 flex justify-between items-center hover:border-slate-300 transition-colors";
                 div.innerHTML = `
-                    <div class="cursor-pointer" onclick="openQtyModal({AttractionID: '${item.id}', Name: '${item.name.replace(/'/g, "\'")}'}, ${item.price})">
-                        <div class="font-bold text-slate-800 text-xs sm:text-sm leading-tight hover:text-primary transition-colors">${item.name}</div>
+                    <div class="cursor-pointer" onclick="openQtyModal({AttractionID: '${item.id}', Name: '${safeName}'}, ${item.price})">
+                        <div class="font-bold text-slate-800 text-xs sm:text-sm leading-tight hover:text-primary transition-colors">${item.name || safeName}</div>
                         <div class="text-[11px] text-slate-500 mt-0.5 font-medium">
                             <span class="bg-blue-100/70 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${breakdownStr}</span>
                             <span>(${item.qty} x ₹${item.price})</span>
@@ -406,8 +448,12 @@ function processBilling() {
 /**
  * Execute Order & send exact adult/child counts to Backend
  */
+let isOutdoorSubmitting = false;
+
 async function executeOrder() {
+    if (isOutdoorSubmitting) return;
     if (cart.length === 0) return;
+    isOutdoorSubmitting = true;
     
     const errBox = document.getElementById('cart-error');
     if (errBox) errBox.classList.add('hidden');
@@ -464,6 +510,7 @@ async function executeOrder() {
             spinner.classList.add('hidden');
             spinner.classList.remove('animate-spin');
         }
+        setTimeout(() => { isOutdoorSubmitting = false; }, 1500);
     }
 }
 
@@ -605,3 +652,6 @@ window.updateModalQty = updateModalQty;
 window.confirmAddToCard = confirmAddToCard;
 window.removeFromCart = removeFromCart;
 window.applyCoupon = applyCoupon;
+
+window.onModalPriceChange = onModalPriceChange;
+window.resetModalDefaultPrice = resetModalDefaultPrice;

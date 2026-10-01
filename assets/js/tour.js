@@ -1,5 +1,5 @@
 /**
- * Kurunji Fun World - Multi-Location 360 Tour Logic
+ * Kurunji Fun World - Multi-Location 360° Tour Logic
  */
 
 document.addEventListener('DOMContentLoaded', () => {

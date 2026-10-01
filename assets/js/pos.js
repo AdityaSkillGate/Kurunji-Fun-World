@@ -71,7 +71,10 @@ if (document.readyState === 'loading') {
     initDashboard();
 }
 
-async function loadDashboardStats(forceRefresh = false) {
+async function loadDashboardStats(forceRefresh = true) {
+    if (forceRefresh) {
+        try { sessionStorage.removeItem('cached_history_data'); } catch(e) {}
+    }
     try {
         const todayIST = new Date().toLocaleDateString('en-CA'); // 'yyyy-MM-dd'
         

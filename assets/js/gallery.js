@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('gallery-search');
 
     // Define categories
-    const categories = ['All', 'Photos', 'Videos', '360', 'Family', 'Kids'];
+    const categories = ['All', 'Photos', 'Videos', '360°', 'Family', 'Kids'];
     let activeCategory = 'All';
 
     let currentImageIndex = 0;
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeCategory === 'All') catMatch = true;
             else if (activeCategory === 'Photos') catMatch = !item.hasVideo && !item.has360;
             else if (activeCategory === 'Videos') catMatch = item.hasVideo;
-            else if (activeCategory === '360') catMatch = item.has360;
+            else if (activeCategory === '360°') catMatch = item.has360;
             else if (activeCategory === 'Family') catMatch = item.categories.includes('Family Fun') || item.categories.includes('Family');
             else catMatch = item.categories.includes(activeCategory);
 
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item.has360) {
                 const badge = document.createElement('div');
                 badge.className = 'absolute top-3 right-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 border border-white/20 z-10 pointer-events-none shadow-sm';
-                badge.innerHTML = '<span class="material-symbols-outlined text-[12px] text-white">360</span><span class="text-[8px] font-bold text-white uppercase tracking-wider">360°</span>';
+                badge.innerHTML = '<span class="material-symbols-outlined text-[12px] text-white">360°</span><span class="text-[8px] font-bold text-white uppercase tracking-wider">360°</span>';
                 wrapper.appendChild(badge);
             }
 

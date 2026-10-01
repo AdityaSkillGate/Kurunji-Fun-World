@@ -20,7 +20,7 @@ ${headerContent}</header>
         </p>
       </section>
 
-      <!-- 360 Viewer Container -->
+      <!-- 360° Viewer Container -->
       <section class="px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto mb-12">
         <div class="bg-white rounded-[32px] shadow-xl border border-outline-variant/20 overflow-hidden flex flex-col">
           
@@ -34,8 +34,8 @@ ${headerContent}</header>
           <!-- Viewer Area -->
           <div class="relative w-full aspect-square md:aspect-[21/9] bg-black overflow-hidden group">
             
-            <!-- The Momento360 Iframe -->
-            <iframe id="tour-iframe" src="" class="w-full h-full absolute inset-0 z-0 transition-opacity duration-500 opacity-0" frameborder="0" allowfullscreen="true" loading="lazy" title="360 Tour"></iframe>
+            <!-- The Momento360° Iframe -->
+            <iframe id="tour-iframe" src="" class="w-full h-full absolute inset-0 z-0 transition-opacity duration-500 opacity-0" frameborder="0" allowfullscreen="true" loading="lazy" title="360° Tour"></iframe>
             
             <!-- Loading Overlay -->
             <div id="tour-loader" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-charcoal-premium text-white transition-opacity duration-300">

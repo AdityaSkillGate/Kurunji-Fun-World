@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update Links
         btnDetails.href = `attraction.html?slug=${attraction.slug}`;
         
-        if (attraction.slug === 'vr-360') {
+        if (attraction.slug === 'vr-360°') {
             btn360.href = 'vr-360.html';
             btn360.classList.remove('hidden');
         } else {

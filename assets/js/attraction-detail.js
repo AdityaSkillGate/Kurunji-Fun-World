@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             badgeContainer.innerHTML += `<span class="bg-tertiary-container text-on-tertiary-container text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Coming Soon</span>`;
         }
 
-        // 360 Button
+        // 360° Button
         if (attr.panorama) {
             const btn360 = document.getElementById('btn-360');
             btn360.classList.remove('hidden');

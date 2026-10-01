@@ -1,3 +1,44 @@
+
+const DEFAULT_CHILD_PRICE = 599;
+const DEFAULT_ADULT_PRICE = 899;
+
+function onCustomPriceChange() {
+    const cEl = document.getElementById('custom-child-price');
+    const aEl = document.getElementById('custom-adult-price');
+    
+    if (cEl) {
+        const val = parseFloat(cEl.value);
+        childPrice = !isNaN(val) && val >= 0 ? val : DEFAULT_CHILD_PRICE;
+        const cDisp = document.getElementById('child-price-display');
+        if (cDisp) cDisp.textContent = '₹' + childPrice;
+    }
+    if (aEl) {
+        const val = parseFloat(aEl.value);
+        adultPrice = !isNaN(val) && val >= 0 ? val : DEFAULT_ADULT_PRICE;
+        const aDisp = document.getElementById('adult-price-display');
+        if (aDisp) aDisp.textContent = '₹' + adultPrice;
+    }
+    updateTotals();
+}
+
+function resetDefaultFFPrices() {
+    childPrice = DEFAULT_CHILD_PRICE;
+    adultPrice = DEFAULT_ADULT_PRICE;
+    const cEl = document.getElementById('custom-child-price');
+    const aEl = document.getElementById('custom-adult-price');
+    if (cEl) cEl.value = DEFAULT_CHILD_PRICE;
+    if (aEl) aEl.value = DEFAULT_ADULT_PRICE;
+    const cDisp = document.getElementById('child-price-display');
+    if (cDisp) cDisp.textContent = '₹' + DEFAULT_CHILD_PRICE;
+    const aDisp = document.getElementById('adult-price-display');
+    if (aDisp) aDisp.textContent = '₹' + DEFAULT_ADULT_PRICE;
+    updateTotals();
+}
+
+window.onCustomPriceChange = onCustomPriceChange;
+window.resetDefaultFFPrices = resetDefaultFFPrices;
+
+
 /**
  * pos-ff.js
  * Logic for First Floor Direct Billing POS Module (Unified Single Page)
@@ -35,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const m = document.getElementById('review-modal');
         if (m) m.classList.add('hidden');
     });
-    onEl('review-confirm-btn', 'click', executeOrder);
+    // onEl('review-confirm-btn', 'click', executeOrder); // handled by inline onclick with debounce
     
     onEl('print-btn', 'click', () => window.print());
     onEl('new-txn-btn', 'click', () => window.location.reload());
@@ -266,8 +307,13 @@ function handleBillingSubmit() {
     if (rm) rm.classList.remove('hidden');
 }
 
+let isFFSubmitting = false;
+
 async function executeOrder() {
+    if (isFFSubmitting) return;
     if (childQty === 0 && adultQty === 0) return;
+    
+    isFFSubmitting = true;
     
     const errBox = document.getElementById('cart-error') || document.getElementById('error-msg');
     if (errBox) errBox.classList.add('hidden');
@@ -293,8 +339,13 @@ async function executeOrder() {
     
     try {
         const payload = {
+            clientTxnId: 'FF-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
             childQty,
             adultQty,
+            childPrice,
+            adultPrice,
+            subtotal: (childQty * childPrice) + (adultQty * adultPrice),
+            total: Math.max(0, ((childQty * childPrice) + (adultQty * adultPrice)) - appliedDiscount),
             paymentMethod,
             customerName: customerName || "Walk-in Customer",
             phone,
@@ -326,6 +377,7 @@ async function executeOrder() {
             spinner.classList.add('hidden');
             spinner.classList.remove('animate-spin');
         }
+        setTimeout(() => { isFFSubmitting = false; }, 1500);
     }
 }
 
@@ -341,13 +393,18 @@ function showReceipt(response, mode) {
         if (el) el.textContent = val;
     };
 
+    const cTotal = childQty * childPrice;
+    const aTotal = adultQty * adultPrice;
+    const computedTotal = Math.max(0, (cTotal + aTotal) - appliedDiscount);
+    const finalBillTotal = (response && response.total !== undefined && response.total > 0) ? response.total : computedTotal;
+
     setT('receipt-date', new Date().toLocaleString('en-IN'));
-    setT('receipt-bill', response.billId || 'B-FF-' + Date.now());
+    setT('receipt-bill', response.billId || generateClientBillId('FF'));
     setT('receipt-c-qty', childQty);
-    setT('receipt-c-total', `₹${childQty * childPrice}`);
+    setT('receipt-c-total', `₹${cTotal}`);
     setT('receipt-a-qty', adultQty);
-    setT('receipt-a-total', `₹${adultQty * adultPrice}`);
-    setT('receipt-total', `₹${response.total || grandTotal}`);
+    setT('receipt-a-total', `₹${aTotal}`);
+    setT('receipt-total', `₹${finalBillTotal}`);
     setT('receipt-mode', mode);
     
     const childRow = document.getElementById('receipt-child-row');
@@ -379,3 +436,6 @@ window.handleBillingSubmit = handleBillingSubmit;
 window.executeOrder = executeOrder;
 window.updateQty = updateQty;
 window.applyCoupon = applyCoupon;
+
+window.onCustomPriceChange = onCustomPriceChange;
+window.resetDefaultFFPrices = resetDefaultFFPrices;

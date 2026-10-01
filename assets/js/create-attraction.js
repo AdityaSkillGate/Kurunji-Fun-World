@@ -98,8 +98,8 @@ ${headerContent}</header>
               
               <div class="flex gap-3">
                 <button id="btn-360" class="hidden px-6 py-3 rounded-full bg-white/20 backdrop-blur-md text-white font-bold border border-white/30 hover:bg-white hover:text-charcoal-premium transition-colors items-center gap-2">
-                  <span class="material-symbols-outlined text-[20px]">360</span>
-                  View 360
+                  <span class="material-symbols-outlined text-[20px]">360°</span>
+                  View 360°
                 </button>
               </div>
             </div>

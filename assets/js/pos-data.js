@@ -28,7 +28,7 @@ var POSData = (function () {
             { PackageID: "RP-10", PayAmount: 10000, BasePoints: 10000, BonusPoints: 10000, TotalPoints: 20000, DisplayOrder: 10 }
         ],
         groundFloorAttractions: [
-            { AttractionID: "GF-01", Name: "VR 360", PointsPerPerson: 200, Status: "ACTIVE", Floor: "Ground", Type: "VR" },
+            { AttractionID: "GF-01", Name: "VR 360°", PointsPerPerson: 200, Status: "ACTIVE", Floor: "Ground", Type: "VR" },
             { AttractionID: "GF-02", Name: "Boxer", PointsPerPerson: 100, Status: "ACTIVE", Floor: "Ground", Type: "Arcade" },
             { AttractionID: "GF-03", Name: "Massage Chair", PointsPerPerson: 100, Status: "ACTIVE", Floor: "Ground", Type: "Relaxation" },
             { AttractionID: "GF-04", Name: "Play With Me", PointsPerPerson: 100, Status: "ACTIVE", Floor: "Ground", Type: "Interactive" },
@@ -51,8 +51,8 @@ var POSData = (function () {
         ],
         outdoorPricing: [
             { AttractionID: "OUT-01", Name: "Crazy Roller", Price: 200, Status: "ACTIVE" },
-            { AttractionID: "OUT-02", Name: "360 Cycle Ride", Price: 150, Status: "ACTIVE" },
-            { AttractionID: "OUT-03", Name: "Human Gyro 360", Price: 150, Status: "ACTIVE" },
+            { AttractionID: "OUT-02", Name: "360° Cycle Ride", Price: 150, Status: "ACTIVE" },
+            { AttractionID: "OUT-03", Name: "Human Gyro 360°", Price: 150, Status: "ACTIVE" },
             { AttractionID: "OUT-04", Name: "Bull Ride", Price: 150, Status: "ACTIVE" },
             { AttractionID: "OUT-05", Name: "Bungee Trampoline", Price: 150, Status: "ACTIVE" },
             { AttractionID: "OUT-06", Name: "Zero Gravity", Price: 150, Status: "ACTIVE" },

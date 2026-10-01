@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         desc.textContent = facility.description;
         contentWrapper.appendChild(desc);
 
-        // Special 360 CTA for Parking
+        // Special 360° CTA for Parking
         if (facility.id === 'F-01' || facility.name.toLowerCase().includes('parking')) {
             const btnWrapper = document.createElement('div');
             btnWrapper.className = "mt-auto pt-4 w-full";
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.href = "tour.html#parking";
             btn.className = "inline-flex items-center justify-between w-full px-6 py-3 rounded-xl bg-surface-container-high text-primary font-bold hover:bg-primary hover:text-white transition-colors border border-outline-variant/20 group/btn";
             btn.innerHTML = `
-                <span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">360</span> Parking 360°</span>
+                <span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">360°</span> Parking 360°</span>
                 <span class="material-symbols-outlined text-sm group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
             `;
             

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Kurunji Fun World - Park Explorer Logic
  * Handles the rendering, filtering, and searching of attractions in the UI.
  */
@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // DOM Elements
     const gridContainer = document.getElementById('attractions-grid');
+    if (!gridContainer) return;
     const emptyState = document.getElementById('empty-state');
     const searchInput = document.getElementById('explorer-search');
     
@@ -116,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${attraction.shortDescription}
                     </p>
                     
-                    ${attraction.slug === 'vr-360' ? 
+                    ${attraction.slug === 'vr-360°' ? 
                         `<a href="vr-360.html" class="w-full mt-auto py-2.5 rounded-lg border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">Explore <span class="material-symbols-outlined text-[18px]">arrow_forward</span></a>` 
                         : 
                         `<a href="attraction-${attraction.slug}.html" class="w-full mt-auto py-2.5 rounded-lg border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">Explore <span class="material-symbols-outlined text-[18px]">arrow_forward</span></a>`
@@ -141,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="p-5 flex flex-col flex-grow">
                     <h3 class="text-lg font-bold text-on-surface mb-2">${theme.name}</h3>
-                    <p class="text-on-surface-variant text-sm flex-grow mb-4">Step into an immersive 360 virtual reality adventure.</p>
+                    <p class="text-on-surface-variant text-sm flex-grow mb-4">Step into an immersive 360° virtual reality adventure.</p>
                     <a href="vr-360.html" class="w-full mt-auto py-2.5 rounded-lg bg-primary/10 text-primary font-bold hover:bg-primary hover:text-white transition-colors flex items-center justify-center gap-2">
                         View Theme
                     </a>

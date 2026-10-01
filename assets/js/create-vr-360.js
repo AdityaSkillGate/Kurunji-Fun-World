@@ -7,7 +7,7 @@ const headerContent = headerMatch[1];
 const footerMatch = attractionsHTML.match(/<footer[\s\S]*?<\/html>/);
 const footerContent = footerMatch[0];
 
-const newHtml = `${headStart}<title>VR 360 Experience | Kurunji Fun World</title>
+const newHtml = `${headStart}<title>VR 360° Experience | Kurunji Fun World</title>
 ${headerContent}</header>
 
     <main class="bg-charcoal-premium min-h-screen text-mist-white overflow-hidden">
@@ -27,7 +27,7 @@ ${headerContent}</header>
             GROUND FLOOR ATTRACTION
           </span>
           <h1 class="font-display-lg text-[50px] md:text-[80px] text-white mb-4 drop-shadow-2xl leading-none font-extrabold tracking-tighter" style="text-shadow: 0 0 40px rgba(74, 215, 242, 0.5);">
-            VR 360
+            VR 360°
           </h1>
           <p class="font-body-lg text-xl md:text-2xl text-primary-fixed font-semibold mb-2 tracking-wide">
             40+ Immersive Themes

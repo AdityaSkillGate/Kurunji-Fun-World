@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('${attraction.image}')" alt="${attraction.name}"></div>
                     ${attraction.has360 ? `
                         <div class="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 border border-white/20 shadow-sm">
-                            <span class="material-symbols-outlined text-[12px] text-white">360</span>
+                            <span class="material-symbols-outlined text-[12px] text-white">360°</span>
                             <span class="text-[8px] font-bold text-white uppercase tracking-wider">360°</span>
                         </div>
                     ` : ''}
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex flex-col sm:flex-row gap-4 border-t border-outline-variant/30 pt-6 mt-auto">
                     ${attraction.has360 ? `
                         <a href="index.html#360-tour" class="flex-1 py-4 rounded-xl bg-charcoal-premium text-white font-bold hover:bg-black transition-colors flex items-center justify-center gap-2 text-center">
-                            <span class="material-symbols-outlined">360</span> View in 360°
+                            <span class="material-symbols-outlined">360°</span> View in 360°
                         </a>
                     ` : ''}
                     <a href="index.html#plan" class="flex-1 py-4 rounded-xl bg-primary text-white font-bold btn-primary-gradient hover:scale-105 transition-transform flex items-center justify-center gap-2 text-center">

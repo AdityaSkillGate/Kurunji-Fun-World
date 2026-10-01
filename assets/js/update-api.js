@@ -20,7 +20,7 @@ async function fetchAttractions() {
                     { id: "A-08", name: "Snail Times", slug: "snail-times", type: "Indoor", floor: "Ground Floor", category: "Kids", description: "Gentle fun for the little ones.", status: "Active" },
                     { id: "A-09", name: "Big Boss", slug: "big-boss", type: "Indoor", floor: "Ground Floor", category: "Interactive", description: "Take charge and play like a boss.", status: "Active" },
                     { id: "A-10", name: "Passion Blasting", slug: "passion-blasting", type: "Indoor", floor: "Ground Floor", category: "Shooter", description: "Intense arcade shooting action.", status: "Active" },
-                    { id: "A-11", name: "VR 360", slug: "vr-360", type: "Indoor", floor: "Ground Floor", category: "VR", description: "Immersive 360 virtual reality experiences with 40+ themes.", status: "Active" },
+                    { id: "A-11", name: "VR 360°", slug: "vr-360°", type: "Indoor", floor: "Ground Floor", category: "VR", description: "Immersive 360° virtual reality experiences with 40+ themes.", status: "Active" },
                     { id: "A-12", name: "Rescue", slug: "rescue", type: "Indoor", floor: "Ground Floor", category: "Shooter", description: "Save the day in this action game.", status: "Active" },
                     { id: "A-13", name: "Crazy Ball", slug: "crazy-ball", type: "Indoor", floor: "Ground Floor", category: "Interactive", description: "Fast-paced ball action.", status: "Active" },
                     { id: "A-14", name: "Wave Riders", slug: "wave-riders", type: "Indoor", floor: "Ground Floor", category: "Simulator", description: "Ride the digital waves.", status: "Active" },
@@ -38,8 +38,8 @@ async function fetchAttractions() {
                     
                     // Outdoor (8)
                     { id: "C-01", name: "Crazy Roller", slug: "crazy-roller", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "A dizzying, exciting rolling experience.", status: "Active" },
-                    { id: "C-02", name: "360 Cycle Ride", slug: "360-cycle-ride", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "Pedal your way to a full 360 loop.", status: "Active" },
-                    { id: "C-03", name: "Human Gyro 360", slug: "human-gyro-360", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "Experience astronaut training gravity.", status: "Active" },
+                    { id: "C-02", name: "360° Cycle Ride", slug: "360°-cycle-ride", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "Pedal your way to a full 360° loop.", status: "Active" },
+                    { id: "C-03", name: "Human Gyro 360°", slug: "human-gyro-360°", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "Experience astronaut training gravity.", status: "Active" },
                     { id: "C-04", name: "Bull Ride", slug: "bull-ride", type: "Outdoor", floor: "Outdoor", category: "Challenge", description: "Hold on tight and beat the mechanical bull.", status: "Active" },
                     { id: "C-05", name: "Bungee Trampoline", slug: "bungee-trampoline", type: "Outdoor", floor: "Outdoor", category: "Active", description: "Jump higher than ever safely harnessed.", status: "Active" },
                     { id: "C-06", name: "Zero Gravity", slug: "zero-gravity", type: "Outdoor", floor: "Outdoor", category: "Thrill", description: "Defy gravity on this intense ride.", status: "Active" },
