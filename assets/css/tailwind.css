@@ -1747,7 +1747,7 @@ input:where([type='file']):focus {
 
 @keyframes spin {
   to {
-    transform: rotate(360deg);
+    transform: rotate(360°deg);
   }
 }
 
