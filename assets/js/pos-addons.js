@@ -332,6 +332,9 @@ function processBilling() {
         </div>`;
     });
     
+    const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
+
     const content = `
         <div class="space-y-4">
             <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl">
@@ -345,6 +348,10 @@ function processBilling() {
                 <div class="flex justify-between text-xl font-bold text-slate-900 border-t border-purple-200 mt-2 pt-2">
                     <span>Total Payable</span>
                     <span class="text-primary">₹${finalPay}</span>
+                </div>
+                <div class="flex justify-between text-slate-700 font-medium text-sm mt-2 pt-2 border-t border-purple-200">
+                    <span>Payment Mode</span>
+                    <strong class="text-primary font-bold">${paymentMethod}</strong>
                 </div>
             </div>
         </div>
@@ -377,6 +384,7 @@ async function executeOrder() {
     
     try {
         const payload = {
+            clientTxnId: 'ADD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
             items: cart,
             paymentMethod,
             customerName: customerName || "Walk-in Guest",

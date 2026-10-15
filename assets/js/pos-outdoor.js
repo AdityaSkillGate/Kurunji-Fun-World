@@ -81,13 +81,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Payment Radio Styling
-    document.querySelectorAll('.payment-radio-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const r = this.querySelector('input[type="radio"]');
-            if (r) r.checked = true;
+    // Payment Method Selection
+    function selectOutdoorPaymentMethod(card) {
+        if (!card) return;
+        const radio = card.querySelector('input[type="radio"]');
+        if (radio && radio.disabled) return;
+
+        document.querySelectorAll('.payment-method-card').forEach(c => {
+            c.classList.remove('border-primary', 'bg-blue-50/70', 'text-primary');
+            c.classList.add('border-slate-200', 'text-slate-700');
+            const r = c.querySelector('input[type="radio"]');
+            if (r) r.checked = false;
+        });
+
+        card.classList.remove('border-slate-200', 'text-slate-700');
+        card.classList.add('border-primary', 'bg-blue-50/70', 'text-primary');
+        if (radio) radio.checked = true;
+    }
+
+    document.querySelectorAll('.payment-method-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            selectOutdoorPaymentMethod(this);
         });
     });
+
+    document.querySelectorAll('input[name="payment-method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const card = this.closest('.payment-method-card');
+            if (card) selectOutdoorPaymentMethod(card);
+        });
+    });
+
+    window.setOutdoorPaymentMode = function(mode) {
+        const card = document.querySelector(`.payment-method-card[data-mode="${mode}"]`);
+        if (card) selectOutdoorPaymentMethod(card);
+    };
 
     // Coupon Apply
     const applyBtn = document.getElementById('apply-coupon-btn');
@@ -408,6 +436,8 @@ function processBilling() {
     
     const customerName = document.getElementById('cust-name') ? document.getElementById('cust-name').value.trim() : "";
     const phone = document.getElementById('cust-phone') ? document.getElementById('cust-phone').value.trim() : "";
+    const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
 
     const content = `
         <div class="space-y-3.5">
@@ -417,6 +447,10 @@ function processBilling() {
                     <strong class="text-slate-900">${customerName || "Walk-in Guest"}</strong>
                 </div>
                 ${phone ? `<div class="flex justify-between text-slate-700 mb-1"><span>Mobile</span><strong class="font-mono text-slate-900">+91 ${phone}</strong></div>` : ''}
+                <div class="flex justify-between text-slate-700 mb-1">
+                    <span>Payment Mode</span>
+                    <strong class="text-primary font-bold">${paymentMethod}</strong>
+                </div>
                 <div style="margin:12px;" class="flex justify-between text-emerald-800 font-bold border-t border-green-200/80 pt-1.5 mt-1.5">
                     <span>Total Members</span>
                     <span>${totalVisitors} Visitors (${totalAdults} Adults, ${totalChildren} Children)</span>
@@ -470,6 +504,9 @@ async function executeOrder() {
     // Exact calculated demographics from all chosen ride tickets
     const totalAdults = cart.reduce((sum, item) => sum + (item.adultQty || 0), 0);
     const totalChildren = cart.reduce((sum, item) => sum + (item.childQty || 0), 0);
+    const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
+    const finalPay = Math.max(0, subtotal - appliedDiscount);
+    const clientTxnId = 'OUT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
     
     if (btn) btn.disabled = true;
     if (confirmBtn) confirmBtn.disabled = true;
@@ -477,11 +514,15 @@ async function executeOrder() {
     
     try {
         const payload = {
+            clientTxnId,
             items: cart,
             paymentMethod,
             customerName: customerName || "Walk-in Guest",
             couponCode: document.getElementById("coupon-code") ? document.getElementById("coupon-code").value.trim().toUpperCase() : "",
             phone,
+            subtotal,
+            discount: appliedDiscount,
+            total: finalPay,
             adultCount: totalAdults,
             childCount: totalChildren
         };

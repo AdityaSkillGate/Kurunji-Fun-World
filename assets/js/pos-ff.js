@@ -276,6 +276,9 @@ function handleBillingSubmit() {
         discountBlock = `<div class="flex justify-between text-green-600 font-semibold mb-2 text-sm"><span>Discount</span><span>-₹${appliedDiscount}</span></div>`;
     }
     
+    const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
+    
     const content = `
         <div class="space-y-4">
             <div class="bg-orange-50 border border-orange-100 p-4 rounded-xl">
@@ -287,6 +290,10 @@ function handleBillingSubmit() {
                 <div class="flex justify-between text-slate-700 font-medium mb-1 text-sm">
                     <span>Adult Tickets (${adultQty})</span>
                     <span>₹${adultQty * adultPrice}</span>
+                </div>
+                <div class="flex justify-between text-slate-700 font-medium mb-1 text-sm pt-1 border-t border-orange-200/60">
+                    <span>Payment Mode</span>
+                    <strong class="text-primary font-bold">${paymentMethod}</strong>
                 </div>
                 <div class="flex justify-between text-slate-700 font-medium mt-2 pt-2 border-t border-orange-200 text-sm">
                     <span>Subtotal</span>

@@ -287,6 +287,9 @@ function handleRechargeSubmit() {
         discountBlock += `<div class="flex justify-between text-green-600 font-semibold mb-1 text-sm"><span>Bonus Points</span><span>+●${appliedBonus}</span></div>`;
     }
     
+    const paymentRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentRadio ? paymentRadio.value : 'Cash';
+
     const content = `
         <div class="space-y-4">
             <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl">
@@ -311,6 +314,10 @@ function handleRechargeSubmit() {
                 <div class="flex justify-between text-base font-bold text-blue-700 mt-1">
                     <span>Points to Credit</span>
                     <span>● ${finalPoints} pts</span>
+                </div>
+                <div class="flex justify-between text-slate-700 font-medium text-sm mt-2 pt-2 border-t border-blue-200">
+                    <span>Payment Mode</span>
+                    <strong class="text-primary font-bold">${paymentMethod}</strong>
                 </div>
             </div>
         </div>
@@ -363,6 +370,7 @@ async function executeOrder() {
 
     try {
         const payload = {
+            clientTxnId: 'REC-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
             package: selectedPackage,
             cardNumber,
             customerName,
