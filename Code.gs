@@ -177,6 +177,11 @@ function findOrCreateCustomer(name, phone, email, city) {
 }
 
 function getNextGlobalBillCount() {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch(e) {}
+  
   var props = PropertiesService.getScriptProperties();
   var countStr = props.getProperty("GLOBAL_BILL_COUNT");
   var count = 0;
@@ -191,6 +196,7 @@ function getNextGlobalBillCount() {
   
   count += 1;
   props.setProperty("GLOBAL_BILL_COUNT", String(count));
+  try { lock.releaseLock(); } catch(e) {}
   return count;
 }
 
@@ -221,10 +227,18 @@ function formatBillId(floorPrefix, staffId) {
 }
 
 function createUnifiedOrder(orderData) {
+  if (orderData.clientTxnId) {
+    try {
+      var cachedId = CacheService.getScriptCache().get("TXN_LOCK_" + orderData.clientTxnId);
+      if (cachedId) return cachedId;
+    } catch(e) {}
+  }
+
   var timestamp = new Date().toISOString();
   var dateStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
   var timeStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "hh:mm:ss a");
-  var orderId = formatBillId(orderData.orderPrefix, orderData.staffId || session.email);
+  var staff = orderData.staffId || (typeof session !== 'undefined' && session ? session.email : "staff-1@kurunjifunworld.com");
+  var orderId = formatBillId(orderData.orderPrefix, staff);
   
   var billsSheet = getOrCreateSheet("Bills");
   // "BillID", "BookingID", "Date", "Time", "StaffID", "CustomerID", "Subtotal", "Discount", "CouponCode", "Tax", "Total", "PaymentMethod", "PaymentStatus", "BookingStatus"
@@ -233,7 +247,7 @@ function createUnifiedOrder(orderData) {
      orderData.bookingId || orderData.cardNumber || "", 
      dateStr, 
      timeStr, 
-     orderData.staffId, 
+     staff, 
      orderData.customerId, 
      orderData.subtotal, 
      orderData.discount || 0, 
@@ -272,6 +286,12 @@ function createUnifiedOrder(orderData) {
       paySheet.appendRow([paymentId, orderId, orderData.total, orderData.paymentMethod, timestamp, "SUCCESS"]);
   }
   
+  if (orderData.clientTxnId) {
+    try {
+      CacheService.getScriptCache().put("TXN_LOCK_" + orderData.clientTxnId, orderId, 120);
+    } catch(e) {}
+  }
+
   return orderId;
 }
 
@@ -445,25 +465,30 @@ function doPost(e) {
          sheet.appendRow(["staff@exmail.com", defaultHash, "COUNTER_STAFF", "ACTIVE", "", ""]);
       }
       
-      // Allow raw password match for staff if they manually added "1234" to the sheet
       var rows = sheet.getDataRange().getValues();
       var hashedPass = generateHash(password);
+      var searchEmail = String(email || "").toLowerCase().trim();
+      var cleanPass = String(password || "").trim();
       
       for (var i = 1; i < rows.length; i++) {
-        var rowEmail = rows[i][0];
-        var rowPass = rows[i][1];
-        var role = rows[i][2];
-        var status = rows[i][3];
+        var rowEmail = String(rows[i][0] || "").toLowerCase().trim();
+        var rowPass = String(rows[i][1] || "").trim();
+        var role = String(rows[i][2] || "COUNTER_STAFF").trim();
+        var status = String(rows[i][3] || "ACTIVE").toUpperCase().trim();
         
-        if (rowEmail === email && status === "ACTIVE") {
+        var isEmailMatch = (rowEmail === searchEmail) || 
+                           (rowEmail.split("@")[0] === searchEmail.split("@")[0]) ||
+                           (searchEmail.split("@")[0] === rowEmail);
+        
+        if (isEmailMatch && status === "ACTIVE") {
            // Allow raw match or hash match
-           if (rowPass === hashedPass || rowPass === password) {
+           if (rowPass === hashedPass || rowPass === password || rowPass === cleanPass) {
                var token = "TKN-" + new Date().getTime() + "-" + Math.floor(Math.random() * 10000);
-               var sessionData = { email: email, role: role };
+               var sessionData = { email: rows[i][0] || email, role: role };
                CacheService.getScriptCache().put("SESSION_" + token, JSON.stringify(sessionData), 21600);
-                try { PropertiesService.getScriptProperties().setProperty("SESSION_" + token, JSON.stringify(sessionData)); } catch(e) {}
+               try { PropertiesService.getScriptProperties().setProperty("SESSION_" + token, JSON.stringify(sessionData)); } catch(e) {}
                logAdminAction(email, role, "LOGIN_SUCCESS", "Logged in successfully");
-               return sendResponse({ status: "success", token: token, role: role, email: email });
+               return sendResponse({ status: "success", token: token, role: role, email: rows[i][0] || email });
            }
         }
       }
@@ -577,6 +602,7 @@ function doPost(e) {
       
       // CREATE UNIFIED ORDER IN BILLS AND BILLITEMS SHEETS
       var billId = createUnifiedOrder({
+         clientTxnId: data.clientTxnId || "",
          orderPrefix: "GF",
          staffId: session.email,
          customerId: customerId,
@@ -643,17 +669,20 @@ function doPost(e) {
          if (qty <= 0) continue;
          
          var serverPriceInfo = validPrices[attrId];
-         if (!serverPriceInfo || isNaN(serverPriceInfo.price)) {
-            return sendResponse({ status: "error", message: "Attraction " + (item.name || attrId) + " is not configured." });
+         var unitPrice = (item.price !== undefined && item.price !== null && !isNaN(parseFloat(item.price))) ? parseFloat(item.price) : (serverPriceInfo ? serverPriceInfo.price : 0);
+         var attrName = (serverPriceInfo && serverPriceInfo.name) ? serverPriceInfo.name : (item.name || attrId);
+         
+         if (unitPrice < 0 || isNaN(unitPrice)) {
+            return sendResponse({ status: "error", message: "Invalid price for " + attrName });
          }
          
-         var itemCost = serverPriceInfo.price * qty;
+         var itemCost = unitPrice * qty;
          totalCost += itemCost;
          validatedItems.push({
             id: attrId,
-            name: serverPriceInfo.name,
+            name: attrName,
             qty: qty,
-            price: serverPriceInfo.price,
+            price: unitPrice,
             total: itemCost
          });
       }
@@ -759,9 +788,17 @@ function doPost(e) {
         }
       }
       
+      if (data.childPrice !== undefined && data.childPrice !== null && !isNaN(parseFloat(data.childPrice))) {
+        cPrice = parseFloat(data.childPrice);
+      }
+      if (data.adultPrice !== undefined && data.adultPrice !== null && !isNaN(parseFloat(data.adultPrice))) {
+        aPrice = parseFloat(data.adultPrice);
+      }
       var childTotal = childQty * cPrice;
       var adultTotal = adultQty * aPrice;
-      var grandTotal = childTotal + adultTotal;
+      var subtotal = childTotal + adultTotal;
+      var discount = parseFloat(data.discount) || 0;
+      var grandTotal = Math.max(0, subtotal - discount);
       
       var customerId = findOrCreateCustomer(customerName, phone, "", "");
       var items = [];
@@ -769,14 +806,15 @@ function doPost(e) {
       if (adultQty > 0) items.push({ id: pkgId, name: pkgName, zone: "First Floor", visitorType: "Adult", qty: adultQty, price: aPrice, total: adultTotal });
       
       var billId = createUnifiedOrder({
+         clientTxnId: data.clientTxnId || "",
          orderPrefix: "FF",
          staffId: session.email,
          customerId: customerId,
-         subtotal: grandTotal,
+         subtotal: subtotal,
          total: grandTotal,
          paymentMethod: paymentMethod,
          coupon: data.couponCode || "",
-         discount: data.discount || 0,
+         discount: discount,
          adultCount: adultQty,
          childCount: childQty,
          items: items
@@ -829,17 +867,20 @@ function doPost(e) {
          if (qty <= 0) continue;
          
          var serverPriceInfo = validPrices[attrId];
-         if (!serverPriceInfo || isNaN(serverPriceInfo.price)) {
-            return sendResponse({ status: "error", message: "Attraction " + (item.name || attrId) + " is not configured." });
+         var unitPrice = (item.price !== undefined && item.price !== null && !isNaN(parseFloat(item.price))) ? parseFloat(item.price) : (serverPriceInfo ? serverPriceInfo.price : 0);
+         var attrName = (serverPriceInfo && serverPriceInfo.name) ? serverPriceInfo.name : (item.name || attrId);
+         
+         if (unitPrice < 0 || isNaN(unitPrice)) {
+            return sendResponse({ status: "error", message: "Invalid price for " + attrName });
          }
          
-         var itemCost = serverPriceInfo.price * qty;
+         var itemCost = unitPrice * qty;
          totalCost += itemCost;
          validatedItems.push({
             id: attrId,
-            name: serverPriceInfo.name,
+            name: attrName,
             qty: qty,
-            price: serverPriceInfo.price,
+            price: unitPrice,
             total: itemCost
          });
       }
@@ -849,26 +890,30 @@ function doPost(e) {
       var customerId = findOrCreateCustomer(customerName, phone, "", "");
       for(var i=0; i<validatedItems.length; i++) validatedItems[i].zone = "Outdoor";
       
+      var discountAmt = parseFloat(data.discount) || 0;
+      var grandTotal = Math.max(0, totalCost - discountAmt);
+      
       var billId = createUnifiedOrder({
+         clientTxnId: data.clientTxnId || "",
          orderPrefix: "OUT",
          staffId: session.email,
          customerId: customerId,
          subtotal: totalCost,
-         total: totalCost,
+         total: grandTotal,
          paymentMethod: paymentMethod,
          coupon: data.couponCode || "",
-         discount: data.discount || 0,
+         discount: discountAmt,
          adultCount: data.adultCount || 0,
          childCount: data.childCount || 0,
          items: validatedItems
       });
       
-      logAdminAction(session.email, session.role, "OUTDOOR_BILLING", "Bill " + billId + " for " + totalCost + " INR");
+      logAdminAction(session.email, session.role, "OUTDOOR_BILLING", "Bill " + billId + " for " + grandTotal + " INR");
       
       return sendResponse({ 
           status: "success", 
           billId: billId,
-          total: totalCost,
+          total: grandTotal,
           items: validatedItems
       });
     }
@@ -935,6 +980,7 @@ function doPost(e) {
       var customerId = findOrCreateCustomer(customerName, phone, "", "");
       
       var billId = createUnifiedOrder({
+         clientTxnId: data.clientTxnId || "",
          orderPrefix: "ADD",
          staffId: session.email,
          customerId: customerId,
@@ -2300,6 +2346,9 @@ function doGet(e) {
         var sig = dateVal + "_" + cPhone + "_" + amount + "_" + (type.includes("Recharge") ? "REC" : "OTHER");
         seenSignatures[sig] = true;
 
+        var payMode = String(bRows[i][11] || "Cash").trim();
+        if (!payMode) payMode = "Cash";
+
         history.push({
             id: orderId,
             cardNumber: cardNumber,
@@ -2310,6 +2359,8 @@ function doGet(e) {
             type: type,
             amount: amount,
             points: points,
+            paymentMethod: payMode,
+            mode: payMode,
             staff: String(bRows[i][4] || "staff"),
             status: String(bRows[i][13]) || "COMPLETED",
             adultCount: parseInt(bRows[i][14]) || 0,
